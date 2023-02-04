@@ -3,7 +3,7 @@
 # See LICENSE for details.
 
 from tweepy_mastodon.mixins import DataMapping, HashableID
-from tweepy_mastodon.utils import parse_datetime
+from tweepy_mastodon.tweepy.utils import parse_datetime
 
 
 class Poll(HashableID, DataMapping):

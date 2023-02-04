@@ -1,19 +1,17 @@
-import functools
 import logging
-import os
-import sys
 
-from mastodon import Mastodon
-
-from tweepy_mastodon.tweepy.api import (API as TweepyAPI, pagination, payload)
+from tweepy_mastodon.utils import convert_user
+from tweepy_mastodon.tweepy.api import API as TweepyAPI
 
 log = logging.getLogger(__name__)
 
+from mastodon import Mastodon
+import os
+import sys
 
-# tmp for development
+
 def mastodon_api() -> Mastodon:
-    api_base_url = 'mastodon.social'
-
+    api_base_url = os.environ.get('MASTODON_API_BASE_URL')
     client_id = os.environ.get('MASTODON_CLIENT_ID')
     client_secret = os.environ.get('MASTODON_CLIENT_SECRET')
     access_token = os.environ.get('MASTODON_ACCESS_TOKEN')

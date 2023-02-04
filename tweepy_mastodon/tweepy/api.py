@@ -21,7 +21,7 @@ from tweepy_mastodon.errors import (
 )
 from tweepy_mastodon.models import Model
 from tweepy_mastodon.parsers import ModelParser, Parser
-from tweepy_mastodon.utils import list_to_csv
+from tweepy_mastodon.tweepy.utils import list_to_csv
 
 log = logging.getLogger(__name__)
 

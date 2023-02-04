@@ -1,6 +1,6 @@
 import unittest
 
-from tweepy_mastodon.utils import *
+from tweepy_mastodon.tweepy.utils import *
 
 
 class TweepyUtilsTests(unittest.TestCase):
