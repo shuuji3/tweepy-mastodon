@@ -3,7 +3,7 @@
 import re
 from setuptools import find_packages, setup
 
-VERSION_FILE = "tweepy/__init__.py"
+VERSION_FILE = "tweepy_mastodon/__init__.py"
 with open(VERSION_FILE) as version_file:
     match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
                       version_file.read(), re.MULTILINE)
@@ -17,26 +17,25 @@ with open("README.md") as readme_file:
     long_description = readme_file.read()
 
 setup(
-    name="tweepy",
+    name="tweepy-mastodon",
     version=version,
-    description="Twitter library for Python",
+    description="Mastodon library with Tweepy interface for Python",
     long_description=long_description,
     long_description_content_type="text/markdown",
     license="MIT",
-    author="Joshua Roesslein",
-    author_email="tweepy@googlegroups.com",
-    url="https://www.tweepy.org/",
+    author="TAKAHASHI Shuuji",
+    author_email="shuuji3@gmail.com",
+    url="https://github.com/shuuji3/tweepy-mastodon",
     project_urls={
-        "Documentation": "https://tweepy.readthedocs.io",
-        "Issue Tracker": "https://github.com/tweepy/tweepy/issues",
-        "Source Code": "https://github.com/tweepy/tweepy",
+        "Documentation": "https://github.com/shuuji3/tweepy-mastodon",
+        "Issue Tracker": "https://github.com/shuuji3/tweepy-mastodon/issues",
+        "Source Code": "https://github.com/shuuji3/tweepy-mastodon",
     },
-    download_url="https://pypi.org/project/tweepy/",
+    download_url="https://pypi.org/project/tweepy-mastodon/",
     packages=find_packages(),
     install_requires=[
-        "oauthlib>=3.2.0,<4",
-        "requests>=2.27.0,<3",
-        "requests-oauthlib>=1.2.0,<2",
+        "Mastodon.py>=1.8.0,<2",
+        "tweepy>=4.12.1,<5",
     ],
     extras_require={
         "async": [
@@ -55,12 +54,12 @@ setup(
             "coverage>=4.4.2",
             "coveralls>=2.1.0",
             "tox>=3.21.0",
-         ],
+        ],
         "socks": ["requests[socks]>=2.27.0,<3"],
         "test": ["vcrpy>=1.10.3"],
     },
     test_suite="tests",
-    keywords="twitter library",
+    keywords="mastodon library",
     python_requires=">=3.7",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
