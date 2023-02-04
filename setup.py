@@ -54,6 +54,7 @@ setup(
             "coverage>=4.4.2",
             "coveralls>=2.1.0",
             "tox>=3.21.0",
+            "pytest>=7.2.1",
         ],
         "socks": ["requests[socks]>=2.27.0,<3"],
         "test": ["vcrpy>=1.10.3"],
