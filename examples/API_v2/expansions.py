@@ -1,9 +1,9 @@
-import tweepy
+import tweepy_mastodon
 
 
 bearer_token = ""
 
-client = tweepy.Client(bearer_token)
+client = tweepy_mastodon.Client(bearer_token)
 
 # You can specify expansions to retrieve additional objects that relate to the
 # returned results

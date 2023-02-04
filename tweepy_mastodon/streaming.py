@@ -19,11 +19,11 @@ import requests
 from requests_oauthlib import OAuth1
 import urllib3
 
-import tweepy
-from tweepy.client import BaseClient, Response
-from tweepy.errors import TweepyException
-from tweepy.models import Status
-from tweepy.tweet import Tweet
+import tweepy_mastodon
+from tweepy_mastodon.client import BaseClient, Response
+from tweepy_mastodon.errors import TweepyException
+from tweepy_mastodon.models import Status
+from tweepy_mastodon.tweet import Tweet
 
 log = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ class BaseStream:
         self.user_agent = (
             f"Python/{python_version()} "
             f"Requests/{requests.__version__} "
-            f"Tweepy/{tweepy.__version__}"
+            f"Tweepy/{tweepy_mastodon.__version__}"
         )
 
     def _connect(

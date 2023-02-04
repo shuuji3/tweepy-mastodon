@@ -1,4 +1,4 @@
-import tweepy
+import tweepy_mastodon
 
 
 consumer_key = ""
@@ -6,11 +6,11 @@ consumer_secret = ""
 access_token = ""
 access_token_secret = ""
 
-auth = tweepy.OAuth1UserHandler(
+auth = tweepy_mastodon.OAuth1UserHandler(
     consumer_key, consumer_secret, access_token, access_token_secret
 )
 
-api = tweepy.API(auth)
+api = tweepy_mastodon.API(auth)
 
 # Tweet / Update Status
 

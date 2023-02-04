@@ -77,7 +77,7 @@ copyright = '2009-2023, Joshua Roesslein'
 #
 # The short X.Y version.
 sys.path.insert(0, '..')
-from tweepy import __version__
+from tweepy_mastodon import __version__
 
 version = __version__
 # The full version, including alpha/beta/rc tags.

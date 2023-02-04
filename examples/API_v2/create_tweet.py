@@ -1,4 +1,4 @@
-import tweepy
+import tweepy_mastodon
 
 
 consumer_key = ""
@@ -6,7 +6,7 @@ consumer_secret = ""
 access_token = ""
 access_token_secret = ""
 
-client = tweepy.Client(
+client = tweepy_mastodon.Client(
     consumer_key=consumer_key, consumer_secret=consumer_secret,
     access_token=access_token, access_token_secret=access_token_secret
 )

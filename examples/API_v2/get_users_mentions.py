@@ -1,9 +1,9 @@
-import tweepy
+import tweepy_mastodon
 
 
 bearer_token = ""
 
-client = tweepy.Client(bearer_token)
+client = tweepy_mastodon.Client(bearer_token)
 
 # Get User's Mentions
 

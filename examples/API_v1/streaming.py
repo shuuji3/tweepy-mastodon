@@ -1,4 +1,4 @@
-import tweepy
+import tweepy_mastodon
 
 
 consumer_key = ""
@@ -7,7 +7,7 @@ access_token = ""
 access_token_secret = ""
 
 # Subclass Stream to print IDs of Tweets received
-class IDPrinter(tweepy.Stream):
+class IDPrinter(tweepy_mastodon.Stream):
 
     def on_status(self, status):
         print(status.id)

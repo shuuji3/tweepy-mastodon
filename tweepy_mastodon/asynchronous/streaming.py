@@ -13,13 +13,13 @@ import aiohttp
 from oauthlib.oauth1 import Client as OAuthClient
 from yarl import URL
 
-import tweepy
-from tweepy.asynchronous.client import AsyncBaseClient
-from tweepy.client import Response
-from tweepy.errors import TweepyException
-from tweepy.models import Status
-from tweepy.streaming import StreamResponse, StreamRule
-from tweepy.tweet import Tweet
+import tweepy_mastodon
+from tweepy_mastodon.asynchronous.client import AsyncBaseClient
+from tweepy_mastodon.client import Response
+from tweepy_mastodon.errors import TweepyException
+from tweepy_mastodon.models import Status
+from tweepy_mastodon.streaming import StreamResponse, StreamRule
+from tweepy_mastodon.tweet import Tweet
 
 log = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class AsyncBaseStream:
         self.user_agent = (
             f"Python/{python_version()} "
             f"aiohttp/{aiohttp.__version__} "
-            f"Tweepy/{tweepy.__version__}"
+            f"Tweepy/{tweepy_mastodon.__version__}"
         )
 
     async def _connect(

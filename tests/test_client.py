@@ -4,13 +4,13 @@ from config import (
     access_token, access_token_secret, bearer_token, consumer_key,
     consumer_secret, tape, user_id
 )
-import tweepy
+import tweepy_mastodon
 
 
 class TweepyClientTests(unittest.TestCase):
 
     def setUp(self):
-        self.client = tweepy.Client(
+        self.client = tweepy_mastodon.Client(
             bearer_token, consumer_key, consumer_secret,
             access_token or user_id, access_token_secret
         )

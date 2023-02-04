@@ -13,12 +13,12 @@ try:
     import async_lru
     import oauthlib
 except ModuleNotFoundError:
-    from tweepy.errors import TweepyException
+    from tweepy_mastodon.errors import TweepyException
     raise TweepyException(
         "tweepy.asynchronous requires aiohttp, async_lru, and oauthlib to be "
         "installed"
     )
 
-from tweepy.asynchronous.client import AsyncClient
-from tweepy.asynchronous.pagination import AsyncPaginator
-from tweepy.asynchronous.streaming import AsyncStream, AsyncStreamingClient
+from tweepy_mastodon.asynchronous.client import AsyncClient
+from tweepy_mastodon.asynchronous.pagination import AsyncPaginator
+from tweepy_mastodon.asynchronous.streaming import AsyncStream, AsyncStreamingClient

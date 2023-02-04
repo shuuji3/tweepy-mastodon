@@ -2,8 +2,8 @@ import os
 import unittest
 
 from config import create_auth
-from tweepy import API
-from tweepy.errors import HTTPException
+from tweepy_mastodon import API
+from tweepy_mastodon.errors import HTTPException
 
 
 testratelimit = 'TEST_RATE_LIMIT' in os.environ

@@ -4,7 +4,7 @@
 
 from email.utils import parsedate_to_datetime
 
-from tweepy.mixins import HashableID
+from tweepy_mastodon.mixins import HashableID
 
 
 class Model:

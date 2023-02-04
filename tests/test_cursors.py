@@ -1,5 +1,5 @@
 from config import tape, TweepyTestCase, username
-from tweepy import Cursor
+from tweepy_mastodon import Cursor
 
 
 class TweepyCursorTests(TweepyTestCase):

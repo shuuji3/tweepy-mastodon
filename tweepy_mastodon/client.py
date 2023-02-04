@@ -2,40 +2,43 @@
 # Copyright 2009-2023 Joshua Roesslein
 # See LICENSE for details.
 
+from collections import namedtuple
+import datetime
+
 try:
     from functools import cache
 except ImportError:  # Remove when support for Python 3.8 is dropped
     from functools import lru_cache
     cache = lru_cache(maxsize=None)
 
-import asyncio
 import logging
 from platform import python_version
 import time
+import warnings
 
-import aiohttp
-from async_lru import alru_cache
-from oauthlib.oauth1 import Client as OAuthClient
-from yarl import URL
+import requests
 
-import tweepy
-from tweepy.client import BaseClient, Response
-from tweepy.direct_message_event import DirectMessageEvent
-from tweepy.errors import (
+import tweepy_mastodon
+from tweepy_mastodon.auth import OAuth1UserHandler
+from tweepy_mastodon.direct_message_event import DirectMessageEvent
+from tweepy_mastodon.errors import (
     BadRequest, Forbidden, HTTPException, NotFound, TooManyRequests,
     TwitterServerError, Unauthorized
 )
-from tweepy.list import List
-from tweepy.space import Space
-from tweepy.tweet import Tweet
-from tweepy.user import User
-
-async_cache = alru_cache(maxsize=None)
+from tweepy_mastodon.list import List
+from tweepy_mastodon.media import Media
+from tweepy_mastodon.place import Place
+from tweepy_mastodon.poll import Poll
+from tweepy_mastodon.space import Space
+from tweepy_mastodon.tweet import Tweet
+from tweepy_mastodon.user import User
 
 log = logging.getLogger(__name__)
 
+Response = namedtuple("Response", ("data", "includes", "errors", "meta"))
 
-class AsyncBaseClient(BaseClient):
+
+class BaseClient:
 
     def __init__(
         self, bearer_token=None, consumer_key=None, consumer_secret=None,
@@ -51,123 +54,162 @@ class AsyncBaseClient(BaseClient):
         self.return_type = return_type
         self.wait_on_rate_limit = wait_on_rate_limit
 
-        self.session = None
+        self.session = requests.Session()
         self.user_agent = (
             f"Python/{python_version()} "
-            f"aiohttp/{aiohttp.__version__} "
-            f"Tweepy/{tweepy.__version__}"
+            f"Requests/{requests.__version__} "
+            f"Tweepy/{tweepy_mastodon.__version__}"
         )
 
-    async def request(
-        self, method, route, params=None, json=None, user_auth=False
-    ):
-        session = self.session or aiohttp.ClientSession()
-        url = "https://api.twitter.com" + route
+    def request(self, method, route, params=None, json=None, user_auth=False):
+        host = "https://api.twitter.com"
         headers = {"User-Agent": self.user_agent}
-        if json is not None:
-            headers["Content-Type"] = "application/json"
-
+        auth = None
         if user_auth:
-            oauth_client = OAuthClient(
+            auth = OAuth1UserHandler(
                 self.consumer_key, self.consumer_secret,
                 self.access_token, self.access_token_secret
             )
-            url = str(URL(url).with_query(sorted(params.items())))
-            url, headers, body = oauth_client.sign(
-                url, method, headers=headers
-            )
-            # oauthlib.oauth1.Client (OAuthClient) expects colons in query 
-            # values (e.g. in timestamps) to be percent-encoded, while
-            # aiohttp.ClientSession does not automatically encode them
-            before_query, question_mark, query = url.partition('?')
-            url = URL(
-                f"{before_query}?{query.replace(':', '%3A')}",
-                encoded = True
-            )
-            params = None
+            auth = auth.apply_auth()
         else:
             headers["Authorization"] = f"Bearer {self.bearer_token}"
 
         log.debug(
-            f"Making API request: {method} {url}\n"
+            f"Making API request: {method} {host + route}\n"
             f"Parameters: {params}\n"
             f"Headers: {headers}\n"
-            f"JSON: {json}"
+            f"Body: {json}"
         )
 
-        async with session.request(
-            method, url, params=params, json=json, headers=headers
+        with self.session.request(
+            method, host + route, params=params, json=json, headers=headers,
+            auth=auth
         ) as response:
-            await response.read()
+            log.debug(
+                "Received API response: "
+                f"{response.status_code} {response.reason}\n"
+                f"Headers: {response.headers}\n"
+                f"Content: {response.content}"
+            )
 
-        log.debug(
-            f"Received API response: {response.status} {response.reason}\n"
-            f"Headers: {response.headers}"
-        )
+            if response.status_code == 400:
+                raise BadRequest(response)
+            if response.status_code == 401:
+                raise Unauthorized(response)
+            if response.status_code == 403:
+                raise Forbidden(response)
+            if response.status_code == 404:
+                raise NotFound(response)
+            if response.status_code == 429:
+                if self.wait_on_rate_limit:
+                    reset_time = int(response.headers["x-rate-limit-reset"])
+                    sleep_time = reset_time - int(time.time()) + 1
+                    if sleep_time > 0:
+                        log.warning(
+                            "Rate limit exceeded. "
+                            f"Sleeping for {sleep_time} seconds."
+                        )
+                        time.sleep(sleep_time)
+                    return self.request(method, route, params, json, user_auth)
+                else:
+                    raise TooManyRequests(response)
+            if response.status_code >= 500:
+                raise TwitterServerError(response)
+            if not 200 <= response.status_code < 300:
+                raise HTTPException(response)
 
-        if self.session is None:
-            await session.close()
+            return response
 
-        if not 200 <= response.status < 300:
-            response_json = await response.json()
-        if response.status == 400:
-            raise BadRequest(response, response_json=response_json)
-        if response.status == 401:
-            raise Unauthorized(response, response_json=response_json)
-        if response.status == 403:
-            raise Forbidden(response, response_json=response_json)
-        if response.status == 404:
-            raise NotFound(response, response_json=response_json)
-        if response.status == 429:
-            if self.wait_on_rate_limit:
-                reset_time = int(response.headers["x-rate-limit-reset"])
-                sleep_time = reset_time - int(time.time()) + 1
-                if sleep_time > 0:
-                    log.warning(
-                        "Rate limit exceeded. "
-                        f"Sleeping for {sleep_time} seconds."
-                    )
-                    await asyncio.sleep(sleep_time)
-                return await self.request(method, route, params, json, user_auth)
-            else:
-                raise TooManyRequests(response, response_json=response_json)
-        if response.status >= 500:
-            raise TwitterServerError(response, response_json=response_json)
-        if not 200 <= response.status < 300:
-            raise HTTPException(response, response_json=response_json)
-
-        return response
-
-    async def _make_request(
+    def _make_request(
         self, method, route, params={}, endpoint_parameters=(), json=None,
         data_type=None, user_auth=False
     ):
         request_params = self._process_params(params, endpoint_parameters)
 
-        response = await self.request(method, route, params=request_params,
-                                      json=json, user_auth=user_auth)
+        response = self.request(method, route, params=request_params,
+                                json=json, user_auth=user_auth)
 
-        if self.return_type is aiohttp.ClientResponse:
+        if self.return_type is requests.Response:
             return response
 
-        response = await response.json()
+        response = response.json()
 
         if self.return_type is dict:
             return response
 
         return self._construct_response(response, data_type=data_type)
 
+    def _construct_response(self, response, data_type=None):
+        data = response.get("data")
+        data = self._process_data(data, data_type=data_type)
 
-class AsyncClient(AsyncBaseClient):
-    """AsyncClient( \
+        includes = response.get("includes", {})
+        includes = self._process_includes(includes)
+
+        errors = response.get("errors", [])
+        meta = response.get("meta", {})
+
+        return Response(data, includes, errors, meta)
+
+    def _process_data(self, data, data_type=None):
+        if data_type is not None:
+            if isinstance(data, list):
+                data = [data_type(result) for result in data]
+            elif data is not None:
+                data = data_type(data)
+        return data
+
+    def _process_includes(self, includes):
+        if "media" in includes:
+            includes["media"] = [Media(media) for media in includes["media"]]
+        if "places" in includes:
+            includes["places"] = [Place(place) for place in includes["places"]]
+        if "polls" in includes:
+            includes["polls"] = [Poll(poll) for poll in includes["polls"]]
+        if "tweets" in includes:
+            includes["tweets"] = [Tweet(tweet) for tweet in includes["tweets"]]
+        if "users" in includes:
+            includes["users"] = [User(user) for user in includes["users"]]
+        return includes
+
+    def _process_params(self, params, endpoint_parameters):
+        endpoint_parameters = {
+            endpoint_parameter.replace('.', '_'): endpoint_parameter
+            for endpoint_parameter in endpoint_parameters
+        }
+
+        request_params = {}
+        for param_name, param_value in params.items():
+            try:
+                param_name = endpoint_parameters[param_name]
+            except KeyError:
+                log.warn(f"Unexpected parameter: {param_name}")
+
+            if isinstance(param_value, list):
+                request_params[param_name] = ','.join(map(str, param_value))
+            elif isinstance(param_value, datetime.datetime):
+                if param_value.tzinfo is not None:
+                    param_value = param_value.astimezone(datetime.timezone.utc)
+                request_params[param_name] = param_value.strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                )
+                # TODO: Constant datetime format string?
+            elif param_value is not None:
+                request_params[param_name] = param_value
+
+        return request_params
+
+
+class Client(BaseClient):
+    """Client( \
         bearer_token=None, consumer_key=None, consumer_secret=None, \
         access_token=None, access_token_secret=None, *, return_type=Response, \
         wait_on_rate_limit=False \
     )
 
-    Asynchronous Twitter API v2 Client
+    Twitter API v2 Client
 
-    .. versionadded:: 4.10
+    .. versionadded:: 4.0
 
     Parameters
     ----------
@@ -181,20 +223,20 @@ class AsyncClient(AsyncBaseClient):
         Twitter API OAuth 1.0a Access Token
     access_token_secret : str | None
         Twitter API OAuth 1.0a Access Token Secret
-    return_type : type[dict | aiohttp.ClientResponse | Response]
+    return_type : type[dict | requests.Response | Response]
         Type to return from requests to the API
     wait_on_rate_limit : bool
         Whether to wait when rate limit is reached
 
     Attributes
     ----------
-    session : aiohttp.ClientSession
-        Aiohttp client session used to make requests to the API
+    session : requests.Session
+        Requests Session used to make requests to the API
     user_agent : str
         User agent used when making requests to the API
     """
 
-    async def _get_authenticating_user_id(self, *, oauth_1=False):
+    def _get_authenticating_user_id(self, *, oauth_1=False):
         if oauth_1:
             if self.access_token is None:
                 raise TypeError(
@@ -211,7 +253,7 @@ class AsyncClient(AsyncBaseClient):
                     "OAuth 2.0 Authorization Code Flow with PKCE"
                 )
             else:
-                return await self._get_oauth_2_authenticating_user_id(
+                return self._get_oauth_2_authenticating_user_id(
                     self.bearer_token
                 )
 
@@ -219,14 +261,14 @@ class AsyncClient(AsyncBaseClient):
     def _get_oauth_1_authenticating_user_id(self, access_token):
         return access_token.partition('-')[0]
 
-    @async_cache
-    async def _get_oauth_2_authenticating_user_id(self, access_token):
+    @cache
+    def _get_oauth_2_authenticating_user_id(self, access_token):
         original_access_token = self.bearer_token
         original_return_type = self.return_type
 
         self.bearer_token = access_token
         self.return_type = dict
-        user_id = (await self.get_me(user_auth=False))["data"]["id"]
+        user_id = self.get_me(user_auth=False)["data"]["id"]
 
         self.bearer_token = original_access_token
         self.return_type = original_return_type
@@ -235,7 +277,7 @@ class AsyncClient(AsyncBaseClient):
 
     # Bookmarks
 
-    async def remove_bookmark(self, tweet_id):
+    def remove_bookmark(self, tweet_id):
         """Allows a user or authenticated user ID to remove a Bookmark of a
         Tweet.
 
@@ -243,7 +285,9 @@ class AsyncClient(AsyncBaseClient):
 
             A request is made beforehand to Twitter's API to determine the
             authenticating user's ID. This is cached and only done once per
-            :class:`AsyncClient` instance for each access token used.
+            :class:`Client` instance for each access token used.
+
+        .. versionadded:: 4.8
 
         Parameters
         ----------
@@ -258,20 +302,20 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/tweets/bookmarks/api-reference/delete-users-id-bookmarks-tweet_id
         """
-        id = await self._get_authenticating_user_id()
+        id = self._get_authenticating_user_id()
         route = f"/2/users/{id}/bookmarks/{tweet_id}"
 
-        return await self._make_request(
+        return self._make_request(
             "DELETE", route
         )
 
-    async def get_bookmarks(self, **params):
+    def get_bookmarks(self, **params):
         """get_bookmarks( \
             *, expansions=None, max_results=None, media_fields=None, \
             pagination_token=None, place_fields=None, poll_fields=None, \
@@ -285,7 +329,9 @@ class AsyncClient(AsyncBaseClient):
 
             A request is made beforehand to Twitter's API to determine the
             authenticating user's ID. This is cached and only done once per
-            :class:`AsyncClient` instance for each access token used.
+            :class:`Client` instance for each access token used.
+
+        .. versionadded:: 4.8
 
         Parameters
         ----------
@@ -319,16 +365,16 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/tweets/bookmarks/api-reference/get-users-id-bookmarks
         """
-        id = await self._get_authenticating_user_id()
+        id = self._get_authenticating_user_id()
         route = f"/2/users/{id}/bookmarks"
 
-        return await self._make_request(
+        return self._make_request(
             "GET", route, params=params,
             endpoint_parameters=(
                 "expansions", "max_results", "media.fields",
@@ -337,7 +383,7 @@ class AsyncClient(AsyncBaseClient):
             ), data_type=Tweet
         )
 
-    async def bookmark(self, tweet_id):
+    def bookmark(self, tweet_id):
         """Causes the authenticating user to Bookmark the target Tweet provided
         in the request body.
 
@@ -345,7 +391,9 @@ class AsyncClient(AsyncBaseClient):
 
             A request is made beforehand to Twitter's API to determine the
             authenticating user's ID. This is cached and only done once per
-            :class:`AsyncClient` instance for each access token used.
+            :class:`Client` instance for each access token used.
+
+        .. versionadded:: 4.8
 
         Parameters
         ----------
@@ -360,23 +408,26 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/tweets/bookmarks/api-reference/post-users-id-bookmarks
         """
-        id = await self._get_authenticating_user_id()
+        id = self._get_authenticating_user_id()
         route = f"/2/users/{id}/bookmarks"
 
-        return await self._make_request(
+        return self._make_request(
             "POST", route, json={"tweet_id": str(tweet_id)}
         )
 
     # Hide replies
 
-    async def hide_reply(self, id, *, user_auth=True):
+    def hide_reply(self, id, *, user_auth=True):
         """Hides a reply to a Tweet.
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
 
         Parameters
         ----------
@@ -388,19 +439,22 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/tweets/hide-replies/api-reference/put-tweets-id-hidden
         """
-        return await self._make_request(
+        return self._make_request(
             "PUT", f"/2/tweets/{id}/hidden", json={"hidden": True},
             user_auth=user_auth
         )
 
-    async def unhide_reply(self, id, *, user_auth=True):
+    def unhide_reply(self, id, *, user_auth=True):
         """Unhides a reply to a Tweet.
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
 
         Parameters
         ----------
@@ -412,20 +466,20 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/tweets/hide-replies/api-reference/put-tweets-id-hidden
         """
-        return await self._make_request(
+        return self._make_request(
             "PUT", f"/2/tweets/{id}/hidden", json={"hidden": False},
             user_auth=user_auth
         )
 
     # Likes
 
-    async def unlike(self, tweet_id, *, user_auth=True):
+    def unlike(self, tweet_id, *, user_auth=True):
         """Unlike a Tweet.
 
         The request succeeds with no action when the user sends a request to a
@@ -436,8 +490,16 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -453,20 +515,20 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/tweets/likes/api-reference/delete-users-id-likes-tweet_id
         """
-        id = await self._get_authenticating_user_id(oauth_1=user_auth)
+        id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{id}/likes/{tweet_id}"
 
-        return await self._make_request(
+        return self._make_request(
             "DELETE", route, user_auth=user_auth
         )
 
-    async def get_liking_users(self, id, *, user_auth=False, **params):
+    def get_liking_users(self, id, *, user_auth=False, **params):
         """get_liking_users( \
             id, *, expansions=None, max_results=None, media_fields=None, \
             pagination_token=None, place_fields=None, poll_fields=None, \
@@ -474,6 +536,9 @@ class AsyncClient(AsyncBaseClient):
         )
 
         Allows you to get information about a Tweet’s liking users.
+
+        .. versionchanged:: 4.6
+            Added ``max_results`` and ``pagination_token`` parameters
 
         Parameters
         ----------
@@ -506,13 +571,13 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/tweets/likes/api-reference/get-tweets-id-liking_users
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/tweets/{id}/liking_users", params=params,
             endpoint_parameters=(
                 "expansions", "max_results", "media.fields",
@@ -521,7 +586,7 @@ class AsyncClient(AsyncBaseClient):
             ), data_type=User, user_auth=user_auth
         )
 
-    async def get_liked_tweets(self, id, *, user_auth=False, **params):
+    def get_liked_tweets(self, id, *, user_auth=False, **params):
         """get_liked_tweets( \
             id, *, expansions=None, max_results=None, media_fields=None, \
             pagination_token=None, place_fields=None, poll_fields=None, \
@@ -564,7 +629,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -572,7 +637,7 @@ class AsyncClient(AsyncBaseClient):
 
         .. _Tweet cap: https://developer.twitter.com/en/docs/projects/overview#tweet-cap
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/users/{id}/liked_tweets", params=params,
             endpoint_parameters=(
                 "expansions", "max_results", "media.fields",
@@ -581,7 +646,7 @@ class AsyncClient(AsyncBaseClient):
             ), data_type=Tweet, user_auth=user_auth
         )
 
-    async def like(self, tweet_id, *, user_auth=True):
+    def like(self, tweet_id, *, user_auth=True):
         """Like a Tweet.
 
         .. note::
@@ -589,8 +654,16 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -606,24 +679,29 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/tweets/likes/api-reference/post-users-id-likes
         """
-        id = await self._get_authenticating_user_id(oauth_1=user_auth)
+        id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{id}/likes"
 
-        return await self._make_request(
+        return self._make_request(
             "POST", route, json={"tweet_id": str(tweet_id)},
             user_auth=user_auth
         )
 
     # Manage Tweets
 
-    async def delete_tweet(self, id, *, user_auth=True):
+    def delete_tweet(self, id, *, user_auth=True):
         """Allows an authenticated user ID to delete a Tweet.
+
+        .. versionadded:: 4.3
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
 
         Parameters
         ----------
@@ -634,17 +712,17 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/tweets/manage-tweets/api-reference/delete-tweets-id
         """
-        return await self._make_request(
+        return self._make_request(
             "DELETE", f"/2/tweets/{id}", user_auth=user_auth
         )
 
-    async def create_tweet(
+    def create_tweet(
         self, *, direct_message_deep_link=None, for_super_followers_only=None,
         place_id=None, media_ids=None, media_tagged_user_ids=None,
         poll_duration_minutes=None, poll_options=None, quote_tweet_id=None,
@@ -652,6 +730,11 @@ class AsyncClient(AsyncBaseClient):
         reply_settings=None, text=None, user_auth=True
     ):
         """Creates a Tweet on behalf of an authenticated user.
+
+        .. versionadded:: 4.3
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
 
         Parameters
         ----------
@@ -696,7 +779,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -749,13 +832,13 @@ class AsyncClient(AsyncBaseClient):
         if text is not None:
             json["text"] = text
 
-        return await self._make_request(
+        return self._make_request(
             "POST", f"/2/tweets", json=json, user_auth=user_auth
         )
 
     # Quote Tweets
 
-    async def get_quote_tweets(self, id, *, user_auth=False, **params):
+    def get_quote_tweets(self, id, *, user_auth=False, **params):
         """get_quote_tweets( \
             id, *, exclude=None, expansions=None, max_results=None, \
             media_fields=None, pagination_token=None, place_fields=None, \
@@ -767,6 +850,8 @@ class AsyncClient(AsyncBaseClient):
 
         The Tweets returned by this endpoint count towards the Project-level
         `Tweet cap`_.
+
+        .. versionadded:: 4.7
 
         .. versionchanged:: 4.11
             Added ``exclude`` parameter
@@ -806,7 +891,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -814,7 +899,7 @@ class AsyncClient(AsyncBaseClient):
 
         .. _Tweet cap: https://developer.twitter.com/en/docs/projects/overview#tweet-cap
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/tweets/{id}/quote_tweets", params=params,
             endpoint_parameters=(
                 "exclude", "expansions", "max_results", "media.fields",
@@ -825,7 +910,7 @@ class AsyncClient(AsyncBaseClient):
 
     # Retweets
 
-    async def unretweet(self, source_tweet_id, *, user_auth=True):
+    def unretweet(self, source_tweet_id, *, user_auth=True):
         """Allows an authenticated user ID to remove the Retweet of a Tweet.
 
         The request succeeds with no action when the user sends a request to a
@@ -837,8 +922,16 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -854,20 +947,20 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/tweets/retweets/api-reference/delete-users-id-retweets-tweet_id
         """
-        id = await self._get_authenticating_user_id(oauth_1=user_auth)
+        id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{id}/retweets/{source_tweet_id}"
 
-        return await self._make_request(
+        return self._make_request(
             "DELETE", route, user_auth=user_auth
         )
 
-    async def get_retweeters(self, id, *, user_auth=False, **params):
+    def get_retweeters(self, id, *, user_auth=False, **params):
         """get_retweeters( \
             id, *, expansions=None, max_results=None, media_fields=None, \
             pagination_token=None, place_fields=None, poll_fields=None, \
@@ -875,6 +968,9 @@ class AsyncClient(AsyncBaseClient):
         )
 
         Allows you to get information about who has Retweeted a Tweet.
+
+        .. versionchanged:: 4.6
+            Added ``max_results`` and ``pagination_token`` parameters
 
         Parameters
         ----------
@@ -907,13 +1003,13 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/tweets/retweets/api-reference/get-tweets-id-retweeted_by
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/tweets/{id}/retweeted_by", params=params,
             endpoint_parameters=(
                 "expansions", "max_results", "media.fields",
@@ -922,7 +1018,7 @@ class AsyncClient(AsyncBaseClient):
             ), data_type=User, user_auth=user_auth
         )
 
-    async def retweet(self, tweet_id, *, user_auth=True):
+    def retweet(self, tweet_id, *, user_auth=True):
         """Causes the user ID to Retweet the target Tweet.
 
         .. note::
@@ -930,8 +1026,16 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -947,23 +1051,23 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/tweets/retweets/api-reference/post-users-id-retweets
         """
-        id = await self._get_authenticating_user_id(oauth_1=user_auth)
+        id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{id}/retweets"
 
-        return await self._make_request(
+        return self._make_request(
             "POST", route, json={"tweet_id": str(tweet_id)},
             user_auth=user_auth
         )
 
     # Search Tweets
 
-    async def search_all_tweets(self, query, **params):
+    def search_all_tweets(self, query, **params):
         """search_all_tweets( \
             query, *, end_time=None, expansions=None, max_results=None, \
             media_fields=None, next_token=None, place_fields=None, \
@@ -986,6 +1090,9 @@ class AsyncClient(AsyncBaseClient):
 
             By default, a request will return Tweets from up to 30 days ago if
             the ``start_time`` parameter is not provided.
+
+        .. versionchanged:: 4.6
+            Added ``sort_order`` parameter
 
         Parameters
         ----------
@@ -1042,7 +1149,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -1053,7 +1160,7 @@ class AsyncClient(AsyncBaseClient):
         .. _pagination: https://developer.twitter.com/en/docs/twitter-api/tweets/search/integrate/paginate
         """
         params["query"] = query
-        return await self._make_request(
+        return self._make_request(
             "GET", "/2/tweets/search/all", params=params,
             endpoint_parameters=(
                 "end_time", "expansions", "max_results", "media.fields",
@@ -1063,7 +1170,7 @@ class AsyncClient(AsyncBaseClient):
             ), data_type=Tweet
         )
 
-    async def search_recent_tweets(self, query, *, user_auth=False, **params):
+    def search_recent_tweets(self, query, *, user_auth=False, **params):
         """search_recent_tweets( \
             query, *, end_time=None, expansions=None, max_results=None, \
             media_fields=None, next_token=None, place_fields=None, \
@@ -1077,6 +1184,9 @@ class AsyncClient(AsyncBaseClient):
 
         The Tweets returned by this endpoint count towards the Project-level
         `Tweet cap`_.
+
+        .. versionchanged:: 4.6
+            Added ``sort_order`` parameter
 
         Parameters
         ----------
@@ -1140,7 +1250,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -1153,7 +1263,7 @@ class AsyncClient(AsyncBaseClient):
         .. _Academic Research Project: https://developer.twitter.com/en/docs/projects
         """
         params["query"] = query
-        return await self._make_request(
+        return self._make_request(
             "GET", "/2/tweets/search/recent", params=params,
             endpoint_parameters=(
                 "end_time", "expansions", "max_results", "media.fields",
@@ -1165,7 +1275,7 @@ class AsyncClient(AsyncBaseClient):
 
     # Timelines
 
-    async def get_users_mentions(self, id, *, user_auth=False, **params):
+    def get_users_mentions(self, id, *, user_auth=False, **params):
         """get_users_mentions( \
             id, *, end_time=None, expansions=None, max_results=None, \
             media_fields=None, pagination_token=None, place_fields=None, \
@@ -1246,7 +1356,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -1256,7 +1366,7 @@ class AsyncClient(AsyncBaseClient):
         .. _user/lookup: https://developer.twitter.com/en/docs/twitter-api/users/lookup/introduction
         .. _here: https://developer.twitter.com/en/docs/twitter-ids
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/users/{id}/mentions", params=params,
             endpoint_parameters=(
                 "end_time", "expansions", "max_results", "media.fields",
@@ -1265,7 +1375,7 @@ class AsyncClient(AsyncBaseClient):
             ), data_type=Tweet, user_auth=user_auth
         )
 
-    async def get_home_timeline(self, *, user_auth=True, **params):
+    def get_home_timeline(self, *, user_auth=True, **params):
         """get_home_timeline( \
             *, end_time=None, exclude=None, expansions=None, \
             max_results=None, media_fields=None, pagination_token=None, \
@@ -1283,8 +1393,7 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
 
         Parameters
         ----------
@@ -1358,10 +1467,10 @@ class AsyncClient(AsyncBaseClient):
 
         .. _here: https://developer.twitter.com/en/docs/twitter-ids
         """
-        id = await self._get_authenticating_user_id(oauth_1=user_auth)
+        id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{id}/timelines/reverse_chronological"
 
-        return await self._make_request(
+        return self._make_request(
             "GET", route, params=params,
             endpoint_parameters=(
                 "end_time", "exclude", "expansions", "max_results",
@@ -1371,7 +1480,7 @@ class AsyncClient(AsyncBaseClient):
             ), data_type=Tweet, user_auth=user_auth
         )
 
-    async def get_users_tweets(self, id, *, user_auth=False, **params):
+    def get_users_tweets(self, id, *, user_auth=False, **params):
         """get_users_tweets( \
             id, *, end_time=None, exclude=None, expansions=None, \
             max_results=None, media_fields=None, pagination_token=None, \
@@ -1461,7 +1570,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -1471,7 +1580,7 @@ class AsyncClient(AsyncBaseClient):
         .. _user/lookup: https://developer.twitter.com/en/docs/twitter-api/users/lookup/introduction
         .. _here: https://developer.twitter.com/en/docs/twitter-ids
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/users/{id}/tweets", params=params,
             endpoint_parameters=(
                 "end_time", "exclude", "expansions", "max_results",
@@ -1483,7 +1592,7 @@ class AsyncClient(AsyncBaseClient):
 
     # Tweet counts
 
-    async def get_all_tweets_count(self, query, **params):
+    def get_all_tweets_count(self, query, **params):
         """get_all_tweets_count( \
             query, *, end_time=None, granularity=None, next_token=None, \
             since_id=None, start_time=None, until_id=None \
@@ -1535,7 +1644,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -1545,7 +1654,7 @@ class AsyncClient(AsyncBaseClient):
         .. _pagination: https://developer.twitter.com/en/docs/twitter-api/tweets/search/integrate/paginate
         """
         params["query"] = query
-        return await self._make_request(
+        return self._make_request(
             "GET", "/2/tweets/counts/all", params=params,
             endpoint_parameters=(
                 "end_time", "granularity", "next_token", "query", "since_id",
@@ -1553,7 +1662,7 @@ class AsyncClient(AsyncBaseClient):
             )
         )
 
-    async def get_recent_tweets_count(self, query, **params):
+    def get_recent_tweets_count(self, query, **params):
         """get_recent_tweets_count( \
             query, *, end_time=None, granularity=None, since_id=None, \
             start_time=None, until_id=None \
@@ -1602,7 +1711,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -1614,7 +1723,7 @@ class AsyncClient(AsyncBaseClient):
         .. _Academic Research Project: https://developer.twitter.com/en/docs/projects
         """
         params["query"] = query
-        return await self._make_request(
+        return self._make_request(
             "GET", "/2/tweets/counts/recent", params=params,
             endpoint_parameters=(
                 "end_time", "granularity", "query", "since_id", "start_time",
@@ -1624,7 +1733,7 @@ class AsyncClient(AsyncBaseClient):
 
     # Tweet lookup
 
-    async def get_tweet(self, id, *, user_auth=False, **params):
+    def get_tweet(self, id, *, user_auth=False, **params):
         """get_tweet( \
             id, *, expansions=None, media_fields=None, place_fields=None, \
             poll_fields=None, tweet_fields=None, user_fields=None, \
@@ -1655,13 +1764,13 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/tweets/lookup/api-reference/get-tweets-id
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/tweets/{id}", params=params,
             endpoint_parameters=(
                 "expansions", "media.fields", "place.fields", "poll.fields",
@@ -1669,7 +1778,7 @@ class AsyncClient(AsyncBaseClient):
             ), data_type=Tweet, user_auth=user_auth
         )
 
-    async def get_tweets(self, ids, *, user_auth=False, **params):
+    def get_tweets(self, ids, *, user_auth=False, **params):
         """get_tweets( \
             ids, *, expansions=None, media_fields=None, place_fields=None, \
             poll_fields=None, tweet_fields=None, user_fields=None, \
@@ -1702,14 +1811,14 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/tweets/lookup/api-reference/get-tweets
         """
         params["ids"] = ids
-        return await self._make_request(
+        return self._make_request(
             "GET", "/2/tweets", params=params,
             endpoint_parameters=(
                 "ids", "expansions", "media.fields", "place.fields",
@@ -1719,7 +1828,7 @@ class AsyncClient(AsyncBaseClient):
 
     # Blocks
 
-    async def unblock(self, target_user_id, *, user_auth=True):
+    def unblock(self, target_user_id, *, user_auth=True):
         """Unblock another user.
 
         The request succeeds with no action when the user sends a request to a
@@ -1730,8 +1839,16 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -1747,22 +1864,20 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/users/blocks/api-reference/delete-users-user_id-blocking
         """
-        source_user_id = await self._get_authenticating_user_id(
-            oauth_1=user_auth
-        )
+        source_user_id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{source_user_id}/blocking/{target_user_id}"
 
-        return await self._make_request(
+        return self._make_request(
             "DELETE", route, user_auth=user_auth
         )
 
-    async def get_blocked(self, *, user_auth=True, **params):
+    def get_blocked(self, *, user_auth=True, **params):
         """get_blocked( \
             *, expansions=None, max_results=None, pagination_token=None, \
             tweet_fields=None, user_fields=None, user_auth=True \
@@ -1775,8 +1890,16 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -1804,16 +1927,16 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/users/blocks/api-reference/get-users-blocking
         """
-        id = await self._get_authenticating_user_id(oauth_1=user_auth)
+        id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{id}/blocking"
 
-        return await self._make_request(
+        return self._make_request(
             "GET", route, params=params,
             endpoint_parameters=(
                 "expansions", "max_results", "pagination_token",
@@ -1821,7 +1944,7 @@ class AsyncClient(AsyncBaseClient):
             ), data_type=User, user_auth=user_auth
         )
 
-    async def block(self, target_user_id, *, user_auth=True):
+    def block(self, target_user_id, *, user_auth=True):
         """Block another user.
 
         .. note::
@@ -1829,8 +1952,16 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -1846,23 +1977,23 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/users/blocks/api-reference/post-users-user_id-blocking
         """
-        id = await self._get_authenticating_user_id(oauth_1=user_auth)
+        id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{id}/blocking"
 
-        return await self._make_request(
+        return self._make_request(
             "POST", route, json={"target_user_id": str(target_user_id)},
             user_auth=user_auth
         )
 
     # Follows
 
-    async def unfollow_user(self, target_user_id, *, user_auth=True):
+    def unfollow_user(self, target_user_id, *, user_auth=True):
         """Allows a user ID to unfollow another user.
 
         The request succeeds with no action when the authenticated user sends a
@@ -1873,8 +2004,19 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionchanged:: 4.2
+            Renamed from :meth:`Client.unfollow`
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -1890,22 +2032,32 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/users/follows/api-reference/delete-users-source_id-following
         """
-        source_user_id = await self._get_authenticating_user_id(
-            oauth_1=user_auth
-        )
+        source_user_id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{source_user_id}/following/{target_user_id}"
 
-        return await self._make_request(
+        return self._make_request(
             "DELETE", route, user_auth=user_auth
         )
 
-    async def get_users_followers(self, id, *, user_auth=False, **params):
+    def unfollow(self, target_user_id, *, user_auth=True):
+        """Alias for :meth:`Client.unfollow_user`
+
+        .. deprecated:: 4.2
+            Use :meth:`Client.unfollow_user` instead.
+        """
+        warnings.warn(
+            "Client.unfollow is deprecated; use Client.unfollow_user instead.",
+            DeprecationWarning
+        )
+        return self.unfollow_user(target_user_id, user_auth=user_auth)
+
+    def get_users_followers(self, id, *, user_auth=False, **params):
         """get_users_followers( \
             id, *, expansions=None, max_results=None, pagination_token=None, \
             tweet_fields=None, user_fields=None, user_auth=False \
@@ -1938,13 +2090,13 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/users/follows/api-reference/get-users-id-followers
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/users/{id}/followers", params=params,
             endpoint_parameters=(
                 "expansions", "max_results", "pagination_token",
@@ -1953,7 +2105,7 @@ class AsyncClient(AsyncBaseClient):
             data_type=User, user_auth=user_auth
         )
 
-    async def get_users_following(self, id, *, user_auth=False, **params):
+    def get_users_following(self, id, *, user_auth=False, **params):
         """get_users_following( \
             id, *, expansions=None, max_results=None, pagination_token=None, \
             tweet_fields=None, user_fields=None, user_auth=False \
@@ -1986,13 +2138,13 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/users/follows/api-reference/get-users-id-following
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/users/{id}/following", params=params,
             endpoint_parameters=(
                 "expansions", "max_results", "pagination_token",
@@ -2000,7 +2152,7 @@ class AsyncClient(AsyncBaseClient):
             ), data_type=User, user_auth=user_auth
         )
 
-    async def follow_user(self, target_user_id, *, user_auth=True):
+    def follow_user(self, target_user_id, *, user_auth=True):
         """Allows a user ID to follow another user.
 
         If the target user does not have public Tweets, this endpoint will send
@@ -2015,8 +2167,19 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionchanged:: 4.2
+            Renamed from :meth:`Client.follow`
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -2032,25 +2195,35 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/users/follows/api-reference/post-users-source_user_id-following
         """
-        source_user_id = await self._get_authenticating_user_id(
-            oauth_1=user_auth
-        )
+        source_user_id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{source_user_id}/following"
 
-        return await self._make_request(
+        return self._make_request(
             "POST", route, json={"target_user_id": str(target_user_id)},
             user_auth=user_auth
         )
 
+    def follow(self, target_user_id, *, user_auth=True):
+        """Alias for :meth:`Client.follow_user`
+
+        .. deprecated:: 4.2
+            Use :meth:`Client.follow_user` instead.
+        """
+        warnings.warn(
+            "Client.follow is deprecated; use Client.follow_user instead.",
+            DeprecationWarning
+        )
+        return self.follow_user(target_user_id, user_auth=user_auth)
+
     # Mutes
 
-    async def unmute(self, target_user_id, *, user_auth=True):
+    def unmute(self, target_user_id, *, user_auth=True):
         """Allows an authenticated user ID to unmute the target user.
 
         The request succeeds with no action when the user sends a request to a
@@ -2061,8 +2234,16 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -2078,22 +2259,20 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/users/mutes/api-reference/delete-users-user_id-muting
         """
-        source_user_id = await self._get_authenticating_user_id(
-            oauth_1=user_auth
-        )
+        source_user_id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{source_user_id}/muting/{target_user_id}"
 
-        return await self._make_request(
+        return self._make_request(
             "DELETE", route, user_auth=user_auth
         )
 
-    async def get_muted(self, *, user_auth=True, **params):
+    def get_muted(self, *, user_auth=True, **params):
         """get_muted( \
             *, expansions=None, max_results=None, pagination_token=None, \
             tweet_fields=None, user_fields=None, user_auth=True \
@@ -2106,8 +2285,18 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionadded:: 4.1
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -2135,16 +2324,16 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/users/mutes/api-reference/get-users-muting
         """
-        id = await self._get_authenticating_user_id(oauth_1=user_auth)
+        id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{id}/muting"
 
-        return await self._make_request(
+        return self._make_request(
             "GET", route, params=params,
             endpoint_parameters=(
                 "expansions", "max_results", "pagination_token",
@@ -2152,7 +2341,7 @@ class AsyncClient(AsyncBaseClient):
             ), data_type=User, user_auth=user_auth
         )
 
-    async def mute(self, target_user_id, *, user_auth=True):
+    def mute(self, target_user_id, *, user_auth=True):
         """Allows an authenticated user ID to mute the target user.
 
         .. note::
@@ -2160,8 +2349,16 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -2177,25 +2374,23 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/users/mutes/api-reference/post-users-user_id-muting
         """
-        id = await self._get_authenticating_user_id(oauth_1=user_auth)
+        id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{id}/muting"
 
-        return await self._make_request(
+        return self._make_request(
             "POST", route, json={"target_user_id": str(target_user_id)},
             user_auth=user_auth
         )
 
     # User lookup
 
-    async def get_user(
-        self, *, id=None, username=None, user_auth=False, **params
-    ):
+    def get_user(self, *, id=None, username=None, user_auth=False, **params):
         """get_user(*, id=None, username=None, expansions=None, \
                     tweet_fields=None, user_fields=None, user_auth=False)
 
@@ -2224,7 +2419,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -2243,14 +2438,14 @@ class AsyncClient(AsyncBaseClient):
         else:
             raise TypeError("ID or username is required")
 
-        return await self._make_request(
+        return self._make_request(
             "GET", route, params=params,
             endpoint_parameters=("expansions", "tweet.fields", "user.fields"),
             data_type=User, user_auth=user_auth
         )
 
-    async def get_users(self, *, ids=None, usernames=None, user_auth=False,
-                        **params):
+    def get_users(self, *, ids=None, usernames=None, user_auth=False,
+                  **params):
         """get_users(*, ids=None, usernames=None, expansions=None, \
                      tweet_fields=None, user_fields=None, user_auth=False)
 
@@ -2283,7 +2478,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -2303,18 +2498,20 @@ class AsyncClient(AsyncBaseClient):
         else:
             raise TypeError("IDs or usernames are required")
 
-        return await self._make_request(
+        return self._make_request(
             "GET", route, params=params,
             endpoint_parameters=(
                 "ids", "usernames", "expansions", "tweet.fields", "user.fields"
             ), data_type=User, user_auth=user_auth
         )
 
-    async def get_me(self, *, user_auth=True, **params):
+    def get_me(self, *, user_auth=True, **params):
         """get_me(*, expansions=None, tweet_fields=None, user_fields=None, \
                   user_auth=True)
 
         Returns information about an authorized user.
+
+        .. versionadded:: 4.5
 
         Parameters
         ----------
@@ -2329,13 +2526,13 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/users/lookup/api-reference/get-users-me
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/users/me", params=params,
             endpoint_parameters=("expansions", "tweet.fields", "user.fields"),
             data_type=User, user_auth=user_auth
@@ -2343,11 +2540,16 @@ class AsyncClient(AsyncBaseClient):
 
     # Search Spaces
 
-    async def search_spaces(self, query, **params):
+    def search_spaces(self, query, **params):
         """search_spaces(query, *, expansions=None, max_results=None, \
                          space_fields=None, state=None, user_fields=None)
 
         Return live or scheduled Spaces matching your specified search terms
+
+        .. versionadded:: 4.1
+
+        .. versionchanged:: 4.2
+            ``state`` is now an optional parameter.
 
         Parameters
         ----------
@@ -2370,14 +2572,14 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/spaces/search/api-reference/get-spaces-search
         """
         params["query"] = query
-        return await self._make_request(
+        return self._make_request(
             "GET", "/2/spaces/search", params=params,
             endpoint_parameters=(
                 "query", "expansions", "max_results", "space.fields", "state",
@@ -2387,13 +2589,15 @@ class AsyncClient(AsyncBaseClient):
 
     # Spaces lookup
 
-    async def get_spaces(self, *, ids=None, user_ids=None, **params):
+    def get_spaces(self, *, ids=None, user_ids=None, **params):
         """get_spaces(*, ids=None, user_ids=None, expansions=None, \
                       space_fields=None, user_fields=None)
 
         Returns details about multiple live or scheduled Spaces (created by the
         specified user IDs if specified). Up to 100 comma-separated Space or
         user IDs can be looked up using this endpoint.
+
+        .. versionadded:: 4.1
 
         Parameters
         ----------
@@ -2415,7 +2619,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -2435,19 +2639,21 @@ class AsyncClient(AsyncBaseClient):
         else:
             raise TypeError("IDs or user IDs are required")
 
-        return await self._make_request(
+        return self._make_request(
             "GET", route, params=params,
             endpoint_parameters=(
                 "ids", "user_ids", "expansions", "space.fields", "user.fields"
             ), data_type=Space
         )
 
-    async def get_space(self, id, **params):
+    def get_space(self, id, **params):
         """get_space(id, *, expansions=None, space_fields=None, \
                      user_fields=None)
 
         Returns a variety of information about a single Space specified by the
         requested ID.
+
+        .. versionadded:: 4.1
 
         Parameters
         ----------
@@ -2462,20 +2668,20 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/spaces/lookup/api-reference/get-spaces-id
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/spaces/{id}", params=params,
             endpoint_parameters=(
                 "expansions", "space.fields", "user.fields"
             ), data_type=Space
         )
 
-    async def get_space_buyers(self, id, **params):
+    def get_space_buyers(self, id, **params):
         """get_space_buyers( \
             id, *, expansions=None, media_fields=None, place_fields=None, \
             poll_fields=None, tweet_fields=None, user_fields=None \
@@ -2484,6 +2690,8 @@ class AsyncClient(AsyncBaseClient):
         Returns a list of user who purchased a ticket to the requested Space.
         You must authenticate the request using the Access Token of the creator
         of the requested Space.
+
+        .. versionadded:: 4.4
 
         Parameters
         ----------
@@ -2505,13 +2713,13 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/spaces/lookup/api-reference/get-spaces-id-buyers
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/spaces/{id}/buyers", params=params,
             endpoint_parameters=(
                 "expansions", "media.fields", "place.fields", "poll.fields",
@@ -2519,13 +2727,15 @@ class AsyncClient(AsyncBaseClient):
             ), data_type=User
         )
 
-    async def get_space_tweets(self, id, **params):
+    def get_space_tweets(self, id, **params):
         """get_space_tweets( \
             id, *, expansions=None, media_fields=None, place_fields=None, \
             poll_fields=None, tweet_fields=None, user_fields=None \
         )
 
         Returns Tweets shared in the requested Spaces.
+
+        .. versionadded:: 4.6
 
         Parameters
         ----------
@@ -2547,13 +2757,13 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/spaces/lookup/api-reference/get-spaces-id-tweets
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/spaces/{id}/tweets", params=params,
             endpoint_parameters=(
                 "expansions", "media.fields", "place.fields", "poll.fields",
@@ -2563,7 +2773,7 @@ class AsyncClient(AsyncBaseClient):
 
     # Direct Messages lookup
 
-    async def get_direct_message_events(
+    def get_direct_message_events(
         self, *, dm_conversation_id=None, participant_id=None, user_auth=True,
         **params
     ):
@@ -2631,7 +2841,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -2650,7 +2860,7 @@ class AsyncClient(AsyncBaseClient):
         else:
             path = "/2/dm_events"
 
-        return await self._make_request(
+        return self._make_request(
             "GET", path, params=params,
             endpoint_parameters=(
                 "dm_event.fields", "event_types", "expansions", "max_results",
@@ -2663,7 +2873,7 @@ class AsyncClient(AsyncBaseClient):
 
     # Manage Direct Messages
 
-    async def create_direct_message(
+    def create_direct_message(
         self, *, dm_conversation_id=None, participant_id=None, media_id=None,
         text=None, user_auth=True
     ):
@@ -2709,7 +2919,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -2733,13 +2943,11 @@ class AsyncClient(AsyncBaseClient):
         if text is not None:
             json["text"] = text
 
-        return await self._make_request(
-            "POST", path, json=json, user_auth=user_auth
-        )
+        return self._make_request("POST", path, json=json, user_auth=user_auth)
 
     create_dm = create_direct_message
 
-    async def create_direct_message_conversation(
+    def create_direct_message_conversation(
         self, *, media_id=None, text=None, participant_ids, user_auth=True
     ):
         """Creates a new group conversation and adds a Direct Message to it on
@@ -2769,7 +2977,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -2785,7 +2993,7 @@ class AsyncClient(AsyncBaseClient):
         if text is not None:
             json["message"]["text"] = text
 
-        return await self._make_request(
+        return self._make_request(
             "POST", "/2/dm_conversations", json=json, user_auth=user_auth
         )
 
@@ -2793,7 +3001,7 @@ class AsyncClient(AsyncBaseClient):
 
     # List Tweets lookup
 
-    async def get_list_tweets(self, id, *, user_auth=False, **params):
+    def get_list_tweets(self, id, *, user_auth=False, **params):
         """get_list_tweets( \
             id, *, expansions=None, max_results=None, media_fields=None, \
             pagination_token=None, place_fields=None, poll_fields=None, \
@@ -2801,6 +3009,8 @@ class AsyncClient(AsyncBaseClient):
         )
 
         Returns a list of Tweets from the specified List.
+
+        .. versionadded:: 4.4
 
         .. versionchanged:: 4.10.1
             Added ``media_fields``, ``place_fields``, and ``poll_fields``
@@ -2837,13 +3047,13 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/lists/list-tweets/api-reference/get-lists-id-tweets
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/lists/{id}/tweets", params=params,
             endpoint_parameters=(
                 "expansions", "max_results", "media.fields",
@@ -2854,7 +3064,7 @@ class AsyncClient(AsyncBaseClient):
 
     # List follows
 
-    async def unfollow_list(self, list_id, *, user_auth=True):
+    def unfollow_list(self, list_id, *, user_auth=True):
         """Enables the authenticated user to unfollow a List.
 
         .. note::
@@ -2862,8 +3072,18 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionadded:: 4.2
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -2879,26 +3099,28 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/lists/list-follows/api-reference/delete-users-id-followed-lists-list_id
         """
-        id = await self._get_authenticating_user_id(oauth_1=user_auth)
+        id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{id}/followed_lists/{list_id}"
 
-        return await self._make_request(
+        return self._make_request(
             "DELETE", route, user_auth=user_auth
         )
 
-    async def get_list_followers(self, id, *, user_auth=False, **params):
+    def get_list_followers(self, id, *, user_auth=False, **params):
         """get_list_followers( \
             id, *, expansions=None, max_results=None, pagination_token=None, \
             tweet_fields=None, user_fields=None, user_auth=False \
         )
 
         Returns a list of users who are followers of the specified List.
+
+        .. versionadded:: 4.4
 
         Parameters
         ----------
@@ -2925,13 +3147,13 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/lists/list-follows/api-reference/get-lists-id-followers
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/lists/{id}/followers", params=params,
             endpoint_parameters=(
                 "expansions", "max_results", "pagination_token",
@@ -2939,13 +3161,15 @@ class AsyncClient(AsyncBaseClient):
             ), data_type=User, user_auth=user_auth
         )
 
-    async def get_followed_lists(self, id, *, user_auth=False, **params):
+    def get_followed_lists(self, id, *, user_auth=False, **params):
         """get_followed_lists( \
             id, *, expansions=None, list_fields=None, max_results=None, \
             pagination_token=None, user_fields=None, user_auth=False \
         )
 
         Returns all Lists a specified user follows.
+
+        .. versionadded:: 4.4
 
         Parameters
         ----------
@@ -2972,13 +3196,13 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/lists/list-follows/api-reference/get-users-id-followed_lists
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/users/{id}/followed_lists", params=params,
             endpoint_parameters=(
                 "expansions", "list.fields", "max_results", "pagination_token",
@@ -2986,7 +3210,7 @@ class AsyncClient(AsyncBaseClient):
             ), data_type=List, user_auth=user_auth
         )
 
-    async def follow_list(self, list_id, *, user_auth=True):
+    def follow_list(self, list_id, *, user_auth=True):
         """Enables the authenticated user to follow a List.
 
         .. note::
@@ -2994,8 +3218,18 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionadded:: 4.2
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -3011,26 +3245,28 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/lists/list-follows/api-reference/post-users-id-followed-lists
         """
-        id = await self._get_authenticating_user_id(oauth_1=user_auth)
+        id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{id}/followed_lists"
 
-        return await self._make_request(
+        return self._make_request(
             "POST", route, json={"list_id": str(list_id)}, user_auth=user_auth
         )
 
     # List lookup
 
-    async def get_list(self, id, *, user_auth=False, **params):
+    def get_list(self, id, *, user_auth=False, **params):
         """get_list(id, *, expansions=None, list_fields=None, \
                     user_fields=None, user_auth=False)
 
         Returns the details of a specified List.
+
+        .. versionadded:: 4.4
 
         Parameters
         ----------
@@ -3047,26 +3283,28 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/lists/list-lookup/api-reference/get-lists-id
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/lists/{id}", params=params,
             endpoint_parameters=(
                 "expansions", "list.fields", "user.fields"
             ), data_type=List, user_auth=user_auth
         )
 
-    async def get_owned_lists(self, id, *, user_auth=False, **params):
+    def get_owned_lists(self, id, *, user_auth=False, **params):
         """get_owned_lists( \
             id, *, expansions=None, list_fields=None, max_results=None, \
             pagination_token=None, user_fields=None, user_auth=False \
         )
 
         Returns all Lists owned by the specified user.
+
+        .. versionadded:: 4.4
 
         Parameters
         ----------
@@ -3093,13 +3331,13 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/lists/list-lookup/api-reference/get-users-id-owned_lists
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/users/{id}/owned_lists", params=params,
             endpoint_parameters=(
                 "expansions", "list.fields", "max_results", "pagination_token",
@@ -3109,9 +3347,14 @@ class AsyncClient(AsyncBaseClient):
 
     # List members
 
-    async def remove_list_member(self, id, user_id, *, user_auth=True):
+    def remove_list_member(self, id, user_id, *, user_auth=True):
         """Enables the authenticated user to remove a member from a List they
         own.
+
+        .. versionadded:: 4.2
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
 
         Parameters
         ----------
@@ -3124,24 +3367,26 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/lists/list-members/api-reference/delete-lists-id-members-user_id
         """
 
-        return await self._make_request(
+        return self._make_request(
             "DELETE", f"/2/lists/{id}/members/{user_id}", user_auth=user_auth
         )
 
-    async def get_list_members(self, id, *, user_auth=False, **params):
+    def get_list_members(self, id, *, user_auth=False, **params):
         """get_list_members( \
             id, *, expansions=None, max_results=None, pagination_token=None, \
             tweet_fields=None, user_fields=None, user_auth=False \
         )
 
         Returns a list of users who are members of the specified List.
+
+        .. versionadded:: 4.4
 
         Parameters
         ----------
@@ -3168,13 +3413,13 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/lists/list-members/api-reference/get-lists-id-members
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/lists/{id}/members", params=params,
             endpoint_parameters=(
                 "expansions", "max_results", "pagination_token",
@@ -3182,13 +3427,15 @@ class AsyncClient(AsyncBaseClient):
             ), data_type=User, user_auth=user_auth
         )
 
-    async def get_list_memberships(self, id, *, user_auth=False, **params):
+    def get_list_memberships(self, id, *, user_auth=False, **params):
         """get_list_memberships( \
             id, *, expansions=None, list_fields=None, max_results=None, \
             pagination_token=None, user_fields=None, user_auth=False \
         )
 
         Returns all Lists a specified user is a member of.
+
+        .. versionadded:: 4.4
 
         Parameters
         ----------
@@ -3215,13 +3462,13 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/lists/list-members/api-reference/get-users-id-list_memberships
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/users/{id}/list_memberships", params=params,
             endpoint_parameters=(
                 "expansions", "list.fields", "max_results", "pagination_token",
@@ -3229,8 +3476,13 @@ class AsyncClient(AsyncBaseClient):
             ), data_type=List, user_auth=user_auth
         )
 
-    async def add_list_member(self, id, user_id, *, user_auth=True):
+    def add_list_member(self, id, user_id, *, user_auth=True):
         """Enables the authenticated user to add a member to a List they own.
+
+        .. versionadded:: 4.2
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
 
         Parameters
         ----------
@@ -3243,21 +3495,26 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/lists/list-members/api-reference/post-lists-id-members
         """
-        return await self._make_request(
+        return self._make_request(
             "POST", f"/2/lists/{id}/members", json={"user_id": str(user_id)},
             user_auth=user_auth
         )
 
     # Manage Lists
 
-    async def delete_list(self, id, *, user_auth=True):
+    def delete_list(self, id, *, user_auth=True):
         """Enables the authenticated user to delete a List that they own.
+
+        .. versionadded:: 4.2
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
 
         Parameters
         ----------
@@ -3268,21 +3525,26 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/lists/manage-lists/api-reference/delete-lists-id
         """
 
-        return await self._make_request(
+        return self._make_request(
             "DELETE", f"/2/lists/{id}", user_auth=user_auth
         )
 
-    async def update_list(self, id, *, description=None, name=None,
-                          private=None, user_auth=True):
+    def update_list(self, id, *, description=None, name=None, private=None,
+                    user_auth=True):
         """Enables the authenticated user to update the meta data of a
         specified List that they own.
+
+        .. versionadded:: 4.2
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
 
         Parameters
         ----------
@@ -3299,7 +3561,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -3316,13 +3578,18 @@ class AsyncClient(AsyncBaseClient):
         if private is not None:
             json["private"] = private
 
-        return await self._make_request(
+        return self._make_request(
             "PUT", f"/2/lists/{id}", json=json, user_auth=user_auth
         )
 
-    async def create_list(self, name, *, description=None, private=None,
-                          user_auth=True):
+    def create_list(self, name, *, description=None, private=None,
+                    user_auth=True):
         """Enables the authenticated user to create a List.
+
+        .. versionadded:: 4.2
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
 
         Parameters
         ----------
@@ -3337,7 +3604,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -3351,13 +3618,13 @@ class AsyncClient(AsyncBaseClient):
         if private is not None:
             json["private"] = private
 
-        return await self._make_request(
+        return self._make_request(
             "POST", f"/2/lists", json=json, user_auth=user_auth
         )
 
     # Pinned Lists
 
-    async def unpin_list(self, list_id, *, user_auth=True):
+    def unpin_list(self, list_id, *, user_auth=True):
         """Enables the authenticated user to unpin a List.
 
         .. note::
@@ -3365,8 +3632,18 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionadded:: 4.2
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -3382,20 +3659,20 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/lists/pinned-lists/api-reference/delete-users-id-pinned-lists-list_id
         """
-        id = await self._get_authenticating_user_id(oauth_1=user_auth)
+        id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{id}/pinned_lists/{list_id}"
 
-        return await self._make_request(
+        return self._make_request(
             "DELETE", route, user_auth=user_auth
         )
 
-    async def get_pinned_lists(self, *, user_auth=True, **params):
+    def get_pinned_lists(self, *, user_auth=True, **params):
         """get_pinned_lists(*, expansions=None, list_fields=None, \
                             user_fields=None, user_auth=True)
 
@@ -3406,8 +3683,18 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionadded:: 4.4
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -3427,23 +3714,23 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/lists/pinned-lists/api-reference/get-users-id-pinned_lists
         """
-        id = await self._get_authenticating_user_id(oauth_1=user_auth)
+        id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{id}/pinned_lists"
 
-        return await self._make_request(
+        return self._make_request(
             "GET", route, params=params,
             endpoint_parameters=(
                 "expansions", "list.fields", "user.fields"
             ), data_type=List, user_auth=user_auth
         )
 
-    async def pin_list(self, list_id, *, user_auth=True):
+    def pin_list(self, list_id, *, user_auth=True):
         """Enables the authenticated user to pin a List.
 
         .. note::
@@ -3451,8 +3738,18 @@ class AsyncClient(AsyncBaseClient):
             When using OAuth 2.0 Authorization Code Flow with PKCE with
             ``user_auth=False``, a request is made beforehand to Twitter's API
             to determine the authenticating user's ID. This is cached and only
-            done once per :class:`AsyncClient` instance for each access token
-            used.
+            done once per :class:`Client` instance for each access token used.
+
+        .. versionadded:: 4.2
+
+        .. versionchanged:: 4.5
+            Added ``user_auth`` parameter
+
+        .. versionchanged:: 4.8
+            Added support for using OAuth 2.0 Authorization Code Flow with PKCE
+
+        .. versionchanged:: 4.8
+            Changed to raise :class:`TypeError` when the access token isn't set
 
         Parameters
         ----------
@@ -3468,25 +3765,27 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/lists/pinned-lists/api-reference/post-users-id-pinned-lists
         """
-        id = await self._get_authenticating_user_id(oauth_1=user_auth)
+        id = self._get_authenticating_user_id(oauth_1=user_auth)
         route = f"/2/users/{id}/pinned_lists"
 
-        return await self._make_request(
+        return self._make_request(
             "POST", route, json={"list_id": str(list_id)}, user_auth=user_auth
         )
 
     # Batch Compliance
 
-    async def get_compliance_jobs(self, type, **params):
+    def get_compliance_jobs(self, type, **params):
         """get_compliance_jobs(type, *, status=None)
 
         Returns a list of recent compliance jobs.
+
+        .. versionadded:: 4.1
 
         Parameters
         ----------
@@ -3500,20 +3799,22 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/compliance/batch-compliance/api-reference/get-compliance-jobs
         """
         params["type"] = type
-        return await self._make_request(
+        return self._make_request(
             "GET", "/2/compliance/jobs", params=params,
             endpoint_parameters=("type", "status")
         )
 
-    async def get_compliance_job(self, id):
+    def get_compliance_job(self, id):
         """Get a single compliance job with the specified ID.
+
+        .. versionadded:: 4.1
 
         Parameters
         ----------
@@ -3522,17 +3823,17 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
         https://developer.twitter.com/en/docs/twitter-api/compliance/batch-compliance/api-reference/get-compliance-jobs-id
         """
-        return await self._make_request(
+        return self._make_request(
             "GET", f"/2/compliance/jobs/{id}"
         )
 
-    async def create_compliance_job(self, type, *, name=None, resumable=None):
+    def create_compliance_job(self, type, *, name=None, resumable=None):
         """Creates a new compliance job for Tweet IDs or user IDs.
 
         A compliance job will contain an ID and a destination URL. The
@@ -3540,6 +3841,8 @@ class AsyncClient(AsyncBaseClient):
         consumed by your app.
 
         You can run one batch job at a time.
+
+        .. versionadded:: 4.1
 
         Parameters
         ----------
@@ -3556,7 +3859,7 @@ class AsyncClient(AsyncBaseClient):
 
         Returns
         -------
-        dict | aiohttp.ClientResponse | Response
+        dict | requests.Response | Response
 
         References
         ----------
@@ -3570,6 +3873,6 @@ class AsyncClient(AsyncBaseClient):
         if resumable is not None:
             json["resumable"] = resumable
 
-        return await self._make_request(
+        return self._make_request(
             "POST", "/2/compliance/jobs", json=json
         )

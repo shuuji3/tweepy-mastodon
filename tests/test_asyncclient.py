@@ -8,7 +8,7 @@ from config import (
     access_token, access_token_secret, bearer_token, consumer_key,
     consumer_secret, tape, user_id
 )
-from tweepy.asynchronous import AsyncClient
+from tweepy_mastodon.asynchronous import AsyncClient
 
 
 class TweepyAsyncClientTests(IsolatedAsyncioTestCase):

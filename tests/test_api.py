@@ -5,9 +5,9 @@ import unittest
 from ast import literal_eval
 
 from config import tape, TweepyTestCase, username
-from tweepy import API, FileCache, MemoryCache
-from tweepy.models import Friendship
-from tweepy.parsers import Parser
+from tweepy_mastodon import API, FileCache, MemoryCache
+from tweepy_mastodon.models import Friendship
+from tweepy_mastodon.parsers import Parser
 
 test_tweet_id = '266367358078169089'
 tweet_text = 'testing 1000'

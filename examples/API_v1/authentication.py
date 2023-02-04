@@ -1,4 +1,4 @@
-import tweepy
+import tweepy_mastodon
 
 # Your app's API/consumer key and secret can be found under the Consumer Keys
 # section of the Keys and Tokens tab of your app, under the
@@ -15,11 +15,11 @@ consumer_secret = ""
 access_token = ""
 access_token_secret = ""
 
-auth = tweepy.OAuth1UserHandler(
+auth = tweepy_mastodon.OAuth1UserHandler(
     consumer_key, consumer_secret, access_token, access_token_secret
 )
 
-api = tweepy.API(auth)
+api = tweepy_mastodon.API(auth)
 
 # If the authentication was successful, this should print the
 # screen name / username of the account

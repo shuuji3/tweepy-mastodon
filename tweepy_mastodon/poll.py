@@ -2,8 +2,8 @@
 # Copyright 2009-2023 Joshua Roesslein
 # See LICENSE for details.
 
-from tweepy.mixins import DataMapping, HashableID
-from tweepy.utils import parse_datetime
+from tweepy_mastodon.mixins import DataMapping, HashableID
+from tweepy_mastodon.utils import parse_datetime
 
 
 class Poll(HashableID, DataMapping):

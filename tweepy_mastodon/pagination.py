@@ -6,7 +6,7 @@ from math import inf
 
 import requests
 
-from tweepy.client import Response
+from tweepy_mastodon.client import Response
 
 
 class Paginator:
