@@ -5,8 +5,8 @@
 """
 Tweepy Twitter API library
 """
-__version__ = '4.12.1'
-__author__ = 'Joshua Roesslein'
+__version__ = '0.1.0'
+__author__ = 'TAKAHASHI Shuuji'
 __license__ = 'MIT'
 
 from tweepy_mastodon.api import API
