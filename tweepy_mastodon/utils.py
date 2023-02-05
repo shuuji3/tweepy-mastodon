@@ -16,8 +16,11 @@ def convert_status(mastondon_api: Mastodon, mastodon_status: AttribAccessDict,
     mastodon_status['geo'] = None
     mastodon_status['id'] = mastodon_status['id']
     mastodon_status['id_str'] = str(mastodon_status['id'])
-    mastodon_status['in_reply_to_screen_name'] = mastondon_api.account(
-        mastodon_status['in_reply_to_account_id']).username
+    in_reply_to_account_id = mastodon_status['in_reply_to_account_id']
+    if in_reply_to_account_id:
+        mastodon_status['in_reply_to_screen_name'] = mastodon_api.account(in_reply_to_account_id).username
+    else:
+        mastodon_status['in_reply_to_screen_name'] = None
     mastodon_status['in_reply_to_status_id'] = mastodon_status['in_reply_to_id']
     mastodon_status['in_reply_to_status_id_str'] = str(mastodon_status['in_reply_to_id'])
     mastodon_status['in_reply_to_user_id'] = mastodon_status['in_reply_to_account_id']
