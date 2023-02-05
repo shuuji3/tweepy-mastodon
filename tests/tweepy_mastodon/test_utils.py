@@ -160,5 +160,5 @@ def twitter_user():
 
 def test_convert_user(mastodon_api, twitter_user):
     mastodon_user = mastodon_api.me()
-    converted_user = convert_user(mastodon_user)
+    converted_user = convert_user(mastodon_user, verified_credentials=True)
     assert set(converted_user.keys()).issuperset(set(twitter_user.keys()))
