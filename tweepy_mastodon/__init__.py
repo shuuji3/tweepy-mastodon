@@ -10,8 +10,9 @@ __author__ = 'TAKAHASHI Shuuji'
 __license__ = 'MIT'
 
 from tweepy_mastodon.api import API
+from tweepy_mastodon.auth import OAuth1UserHandler
 from tweepy_mastodon.tweepy.auth import (
-    AppAuthHandler, OAuthHandler, OAuth1UserHandler, OAuth2AppHandler,
+    AppAuthHandler, OAuthHandler, OAuth2AppHandler,
     OAuth2BearerHandler, OAuth2UserHandler
 )
 from tweepy_mastodon.cache import Cache, FileCache, MemoryCache

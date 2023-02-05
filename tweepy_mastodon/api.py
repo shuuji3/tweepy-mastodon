@@ -10,19 +10,6 @@ import os
 import sys
 
 
-def mastodon_api() -> Mastodon:
-    api_base_url = os.environ.get('MASTODON_API_BASE_URL')
-    client_id = os.environ.get('MASTODON_CLIENT_ID')
-    client_secret = os.environ.get('MASTODON_CLIENT_SECRET')
-    access_token = os.environ.get('MASTODON_ACCESS_TOKEN')
-
-    if not (client_id and client_secret and access_token):
-        print('environment variable not found!')
-        sys.exit(1)
-
-    return Mastodon(client_id, client_secret, access_token, api_base_url=api_base_url)
-
-
 class API(TweepyAPI):
     """Twitter API v1.1 Interface
 
@@ -77,7 +64,14 @@ class API(TweepyAPI):
             retry_delay=retry_delay, retry_errors=retry_errors, timeout=timeout, upload_host=upload_host,
             user_agent=user_agent, wait_on_rate_limit=wait_on_rate_limit
         )
-        self.mastodon = mastodon_api()
+
+        if auth is not None:
+            self.mastodon = Mastodon(
+                auth.client_id,
+                auth.client_secret,
+                auth.access_token,
+                api_base_url=auth.api_base_url,
+            )
 
     def verify_credentials(self, **kwargs):
         me = self.mastodon.me()

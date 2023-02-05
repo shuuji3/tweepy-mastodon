@@ -9,13 +9,17 @@ import tweepy_mastodon as tweepy
 
 @pytest.fixture
 def twitter_api() -> tweepy.API:
-    consumer_key = os.environ.get('TWITTER_CONSUMER_KEY')
-    consumer_secret = os.environ.get('TWITTER_CONSUMER_SECRET')
-    access_token = os.environ.get('TWITTER_ACCESS_TOKEN')
-    access_token_secret = os.environ.get('TWITTER_ACCESS_TOKEN_SECRET')
+    api_base_url = os.environ.get('MASTODON_API_BASE_URL')
+    consumer_key = os.environ.get('MASTODON_CLIENT_ID')
+    consumer_secret = os.environ.get('MASTODON_CLIENT_SECRET')
+    access_token = os.environ.get('MASTODON_ACCESS_TOKEN')
 
-    auth = tweepy.OAuth1UserHandler(consumer_key=consumer_key, consumer_secret=consumer_secret)
-    auth.set_access_token(key=access_token, secret=access_token_secret)
+    auth = tweepy.OAuth1UserHandler(
+        consumer_key=consumer_key,
+        consumer_secret=consumer_secret,
+        api_base_url=api_base_url
+    )
+    auth.set_access_token(access_token)
 
     yield tweepy.API(auth)
 
