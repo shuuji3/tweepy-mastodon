@@ -2,16 +2,18 @@ from mastodon import Mastodon
 from mastodon.utility import AttribAccessDict
 
 
-def convert_status(mastondon_api: Mastodon, mastodon_status: AttribAccessDict,
-                   is_user_embedded=False) -> AttribAccessDict:
+def convert_status(
+        mastodon_api: Mastodon,
+        mastodon_status: AttribAccessDict,
+        is_user_embedded=False
+) -> AttribAccessDict:
     if not is_user_embedded:
-        mastodon_status['author'] = convert_user(mastondon_api, AttribAccessDict(mastodon_status['account']))
+        mastodon_status['author'] = convert_user(mastodon_api, AttribAccessDict(mastodon_status['account']))
     mastodon_status['contributors'] = None
     mastodon_status['coordinates'] = None
     mastodon_status['entities'] = {'hashtags': [], 'symbols': [], 'urls': [], 'user_mentions': []}  # TODO: fill values
     mastodon_status['favorite_count'] = mastodon_status['favourites_count']
     mastodon_status['retweet_count'] = mastodon_status['reblogs_count']
-
     mastodon_status['favorited'] = mastodon_status['favourited']
     mastodon_status['geo'] = None
     mastodon_status['id'] = mastodon_status['id']
@@ -56,8 +58,10 @@ def convert_user(
     mastodon_account['description'] = mastodon_account.note
     mastodon_account['entities'] = {'description': {'urls': []}}  # tentative. what's this?
     mastodon_account['favourites_count'] = 0  # no corresponding attribute
-    mastodon_account['follow_request_sent'] = mastodon_account.source.follow_requests_count if verified_credentials \
-        else 0
+    if verified_credentials:
+        mastodon_account['follow_request_sent'] = mastodon_account.source.follow_requests_count
+    else:
+        mastodon_account['follow_request_sent'] = 0
     mastodon_account['followers_count'] = mastodon_account.followers_count  # tentative
     mastodon_account['following'] = mastodon_account.following_count  # tentative
     mastodon_account['friends_count'] = 0  # no corresponding attribute
@@ -67,7 +71,10 @@ def convert_user(
     mastodon_account['id_str'] = str(mastodon_account.id)
     mastodon_account['is_translation_enabled'] = False  # no corresponding attribute
     mastodon_account['is_translator'] = False  # no corresponding attribute
-    mastodon_account['lang'] = mastodon_account.source.language if verified_credentials else None  # same format?
+    if verified_credentials:
+        mastodon_account['lang'] = mastodon_account.source.language
+    else:
+        mastodon_account['lang'] = None
     mastodon_account['listed_count'] = 0  # no corresponding attribute
     mastodon_account['location'] = ''  # tentative
     mastodon_account['name'] = mastodon_account.display_name
@@ -95,8 +102,14 @@ def convert_user(
     mastodon_account['suspended'] = False  # tentative
     mastodon_account['time_zone'] = None  # no corresponding attribute
     mastodon_account['translator_type'] = 'none'
-    fields = mastodon_account.source.fields if verified_credentials else mastodon_account.fields
-    mastodon_account['url'] = fields[0]['value'] if len(fields) > 0 else None
+    if verified_credentials:
+        fields = mastodon_account.source.fields
+    else:
+        fields = mastodon_account.fields
+    if len(fields) > 0:
+        mastodon_account['url'] = fields[0]['value']
+    else:
+        mastodon_account['url'] = None
     mastodon_account['utc_offset'] = None  # what's this?
     mastodon_account['verified'] = False  # tentative
     mastodon_account['withheld_in_countries'] = []  # what's this?
