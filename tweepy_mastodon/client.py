@@ -19,7 +19,7 @@ import warnings
 import requests
 
 import tweepy_mastodon
-from tweepy_mastodon.auth import OAuth1UserHandler
+from tweepy_mastodon.tweepy.auth import OAuth1UserHandler
 from tweepy_mastodon.direct_message_event import DirectMessageEvent
 from tweepy_mastodon.errors import (
     BadRequest, Forbidden, HTTPException, NotFound, TooManyRequests,
