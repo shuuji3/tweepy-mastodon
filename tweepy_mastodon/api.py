@@ -1,6 +1,6 @@
 import logging
 
-from tweepy_mastodon.utils import convert_user
+from tweepy_mastodon.utils import convert_user, convert_status
 from tweepy_mastodon.tweepy.api import API as TweepyAPI
 
 log = logging.getLogger(__name__)
@@ -74,3 +74,52 @@ class API(TweepyAPI):
     def verify_credentials(self, **kwargs):
         me = self.mastodon.me()
         return convert_user(self.mastodon, me, verified_credentials=True)
+
+    def home_timeline(
+            self,
+            count=20,
+            since_id=None,
+            max_id=None,
+            trim_user=None,
+            exclude_replies=None,
+            include_entities=None,
+            **kwargs
+    ):
+        """home_timeline(*, count, since_id, max_id, trim_user, exclude_replies, include_entities)
+
+        Returns the 20 most recent statuses, including retweets, posted by
+        the authenticating user and that user's friends. This is the equivalent
+        of /timeline/home on the Web.
+
+        Parameters
+        ----------
+        count
+            |count|
+        since_id
+            |since_id|
+        max_id
+            |max_id|
+        trim_user
+            |trim_user|
+        exclude_replies
+            |exclude_replies|
+        include_entities
+            |include_entities|
+
+        Returns
+        -------
+        :py:class:`List`\[:class:`~tweepy.models.Status`]
+
+        References
+        ----------
+        https://developer.twitter.com/en/docs/twitter-api/v1/tweets/timelines/api-reference/get-statuses-home_timeline
+        """
+        if trim_user is not None or exclude_replies is not None or include_entities is not None:
+            log.warning('`trim_user`, `exclude_replies`, and `include_entities` are not implemented in tweepy-mastodon yet')
+
+        mastodon_posts = self.mastodon.timeline_home(limit=count, since_id=since_id, max_id=max_id)
+        posts = []
+        for mastodon_post in mastodon_posts:
+            post = convert_status(self.mastodon, mastodon_post)
+            posts.append(post)
+        return posts

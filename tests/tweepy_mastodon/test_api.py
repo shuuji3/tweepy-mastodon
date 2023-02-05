@@ -44,3 +44,9 @@ def test_twitter_api(twitter_api):
 
 def test_mastodon_api(mastodon_api: Mastodon):
     assert mastodon_api.me().username == 'shuuji3'
+
+
+def test_home_timeline(twitter_api: tweepy.API):
+    statuses = twitter_api.home_timeline(count=1)
+    assert len(statuses) == 1
+    assert statuses[0].user.screen_name
