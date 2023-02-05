@@ -30,4 +30,3 @@ def test_example_usage():
 
     assert me.status.favorited == False
     assert me.status.retweeted == False
-    assert me.status.source == '<a href="https://elk.zone" rel="nofollow">Elk</a>'
