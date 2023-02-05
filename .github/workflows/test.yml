@@ -21,7 +21,12 @@ jobs:
           pip install .[async,dev,test]
       - name: Run tests
         run: |
-          coverage run -m unittest discover tests
+          coverage run -m pytest tests/tweepy_mastodon/
+        env:
+          MASTODON_API_BASE_URL: ${{ secrets.MASTODON_API_BASE_URL }}
+          MASTODON_CLIENT_ID: ${{ secrets.MASTODON_CLIENT_ID }}
+          MASTODON_CLIENT_SECRET: ${{ secrets.MASTODON_CLIENT_SECRET }}
+          MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
       - name: Send coverage to Coveralls
         continue-on-error: true
         env:
