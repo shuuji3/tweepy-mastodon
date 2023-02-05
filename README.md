@@ -8,9 +8,50 @@
 [![Test Status](https://github.com/shuuji3/tweepy-mastodon/workflows/Test/badge.svg)](https://github.com/shuuji3/tweepy-mastodon/actions?query=workflow%3ATest)
 [![Coverage Status](https://img.shields.io/coveralls/shuuji3/tweepy-mastodon/mastodon.svg?style=flat)](https://coveralls.io/github/shuuji3/tweepy-mastodon?branch=mastodon)
 
-> This library is not working yet!
+> ⚠ This library is under development! Only partial features are implemented.
 
-This is an attempt to provide Mastodon API library which has Tweepy-like interface, to help developers to migrate their good bot/service built with Tweepy to Mastodon easily.
+An attempt to provide Mastodon API library with Tweepy-like interface, to help developers to migrate their good bot/service built with Tweepy to Mastodon easily.
+
+## Example usage
+
+Please prepare your Mastodon API credentials from the developer settings page (example URL: https://mastodon.social/settings/applications).
+
+```py
+import tweepy_mastodon as tweepy
+
+api_base_url = 'mastodon.social'
+consumer_key = 'xxxxxxx'
+consumer_secret = 'xxxxxxx'
+access_token = 'xxxxxxx'
+
+auth = tweepy.OAuth1UserHandler(
+    consumer_key=consumer_key,
+    consumer_secret=consumer_secret,
+    api_base_url=api_base_url
+)
+auth.set_access_token(access_token)
+api = tweepy.API(auth)
+
+me = api.verify_credentials()
+
+me.screen_name
+# => 'shuuji3'
+
+me.display_name
+# => 'TAKAHASHI Shuuji 🌈✨'
+
+me.url
+# => 'https://shuuji3.xyz'
+
+me.profile_background_image_url
+# => 'https://files.mastodon.social/accounts/headers/000/936/436/original/4d6989a698953e80.jpg'
+
+me.created_at
+# => datetime.datetime(2019, 10, 8, 0, 0, tzinfo=tzutc())
+
+me.avatar
+# => 'https://files.mastodon.social/accounts/avatars/000/936/436/original/4854d6cf9e12cb8f.png'
+```
 
 ## Installation
 
