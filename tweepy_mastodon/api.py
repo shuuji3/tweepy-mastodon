@@ -72,7 +72,11 @@ class API(TweepyAPI):
             timeout=60, upload_host='upload.twitter.com', user_agent=None,
             wait_on_rate_limit=False
     ):
-        super()
+        super().__init__(
+            auth, cache=cache, host=host, parser=parser, proxy=proxy, retry_count=retry_count,
+            retry_delay=retry_delay, retry_errors=retry_errors, timeout=timeout, upload_host=upload_host,
+            user_agent=user_agent, wait_on_rate_limit=wait_on_rate_limit
+        )
         self.mastodon = mastodon_api()
 
     def verify_credentials(self, **kwargs):
