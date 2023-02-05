@@ -77,5 +77,4 @@ class API(TweepyAPI):
 
     def verify_credentials(self, **kwargs):
         me = self.mastodon.me()
-        me.screen_name = me.username
-        return me
+        return convert_user(me)
