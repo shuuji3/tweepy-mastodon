@@ -16,8 +16,7 @@ def convert_user(me: AttribAccessDict) -> AttribAccessDict:
     me['following'] = me.following_count  # tentative
     me['friends_count'] = 0  # no corresponding attribute
     me['geo_enabled'] = False  # no corresponding attribute
-    me[
-        'has_extended_profile'] = False  # no corresponding attribute but can be constructed from metadata fields etc.?
+    me['has_extended_profile'] = False  # no corresponding attribute but can be constructed from fields etc.?
     me['id'] = me.id
     me['id_str'] = str(me.id)
     me['is_translation_enabled'] = False  # no corresponding attribute
