@@ -22,16 +22,16 @@ Please prepare your Mastodon API credentials from the developer settings page (e
 import tweepy_mastodon as tweepy
 
 api_base_url = 'mastodon.social'
-consumer_key = 'xxxxxxx'
-consumer_secret = 'xxxxxxx'
-access_token = 'xxxxxxx'
+mastodon_client_id = 'xxxxxxx'
+mastodon_client_secret = 'xxxxxxx'
+mastodon_access_token = 'xxxxxxx'
 
 auth = tweepy.OAuth1UserHandler(
-    consumer_key=consumer_key,
-    consumer_secret=consumer_secret,
+    consumer_key=mastodon_client_id,
+    consumer_secret=mastodon_client_secret,
     api_base_url=api_base_url
 )
-auth.set_access_token(access_token)
+auth.set_access_token(mastodon_access_token)
 api = tweepy.API(auth)
 
 me = api.verify_credentials()
