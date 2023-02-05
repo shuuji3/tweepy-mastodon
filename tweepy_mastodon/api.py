@@ -73,4 +73,4 @@ class API(TweepyAPI):
 
     def verify_credentials(self, **kwargs):
         me = self.mastodon.me()
-        return convert_user(me, verified_credentials=True)
+        return convert_user(self.mastodon, me, verified_credentials=True)

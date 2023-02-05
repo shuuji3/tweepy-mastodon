@@ -3,7 +3,7 @@ from mastodon.utility import AttribAccessDict
 
 
 def convert_status(mastondon_api: Mastodon, mastodon_status: AttribAccessDict) -> AttribAccessDict:
-    mastodon_status['author'] = convert_user(AttribAccessDict(mastodon_status['account']))
+    mastodon_status['author'] = convert_user(mastondon_api, AttribAccessDict(mastodon_status['account']))
     mastodon_status['contributors'] = None
     mastodon_status['coordinates'] = None
     mastodon_status['entities'] = {'hashtags': [], 'symbols': [], 'urls': [], 'user_mentions': []}  # TODO: fill values
@@ -34,7 +34,7 @@ def convert_status(mastondon_api: Mastodon, mastodon_status: AttribAccessDict) -
     return mastodon_status
 
 
-def convert_user(mastodon_account: AttribAccessDict, verified_credentials=False) -> AttribAccessDict:
+def convert_user(mastodon_api: Mastodon, mastodon_account: AttribAccessDict, verified_credentials=False) -> AttribAccessDict:
     mastodon_account['contributors_enabled'] = False  # tentative. what's this?
     mastodon_account['default_profile'] = True  # tentative. what's this?
     mastodon_account['default_profile_image'] = False  # tentative. what's this?
