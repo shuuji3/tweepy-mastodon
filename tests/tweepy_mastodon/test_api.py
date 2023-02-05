@@ -50,3 +50,8 @@ def test_home_timeline(twitter_api: tweepy.API):
     statuses = twitter_api.home_timeline(count=1)
     assert len(statuses) == 1
     assert statuses[0].user.screen_name
+
+
+def test_update_status(twitter_api: tweepy.API, mocker):
+    # TODO: write test with mock
+    pass
