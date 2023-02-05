@@ -1,10 +1,11 @@
 import datetime
 from dateutil.tz import tzutc
 
+from mastodon.utility import AttribAccessDict
 import pytest
 
 from tests.tweepy_mastodon.test_api import mastodon_api
-from tweepy_mastodon.utils import convert_user
+from tweepy_mastodon.utils import convert_user, convert_status
 
 
 @pytest.fixture
@@ -158,7 +159,138 @@ def twitter_user():
     }
 
 
+@pytest.fixture
+def twitter_status():
+    yield {
+        'created_at': datetime.datetime(2023, 2, 3, 16, 45, tzinfo=datetime.timezone.utc),
+        'id': 109801812845135807,
+        'id_str': '109801812845135807',
+        'text': 'tweet test example',
+        'truncated': False,
+        'entities': {'hashtags': [], 'symbols': [], 'user_mentions': [], 'urls': []},
+        'source': 'Twitter Web App',
+        'source_url': 'https://mobile.twitter.com',
+        'in_reply_to_status_id': None,
+        'in_reply_to_status_id_str': None,
+        'in_reply_to_user_id': None,
+        'in_reply_to_user_id_str': None,
+        'in_reply_to_screen_name': None,
+        'author': '''User(_api=<tweepy.api.API object at 0x10acff220>, 'text': 'example tweet text'...''',
+        'user': '''User(_api=<tweepy.api.API object at 0x10acff220>, 'text': 'example tweet text'...''',
+        'geo': None,
+        'coordinates': None,
+        'place': None,
+        'contributors': None,
+        'is_quote_status': False,
+        'retweet_count': 0,
+        'favorite_count': 0,
+        'favorited': False,
+        'retweeted': False,
+        'lang': 'in'
+    }
+
+
+@pytest.fixture
+def mastodon_status():
+    yield AttribAccessDict({
+        'id': 109801812845135807,
+        'created_at': datetime.datetime(2023, 2, 3, 16, 45, 0, 892000, tzinfo=tzutc()),
+        'in_reply_to_id': 109801363905285407,
+        'in_reply_to_account_id': 936436,
+        'sensitive': False,
+        'spoiler_text': '',
+        'visibility': 'public',
+        'language': 'en',
+        'uri': 'https://mastodon.social/users/shuuji3/statuses/109801812845135807',
+        'url': 'https://mastodon.social/@shuuji3/109801812845135807',
+        'replies_count': 0,
+        'reblogs_count': 0,
+        'favourites_count': 0,
+        'edited_at': None,
+        'favourited': False,
+        'reblogged': False,
+        'muted': False,
+        'bookmarked': False,
+        'pinned': False,
+        'content': '<p>There&#39;s the previous attempt to implement a Tweepy-like library to talk with Mastodon API called &quot;pawopy&quot;. But it was archived 5 years ago: <a href="https://github.com/calmery/Pawopy" target="_blank" rel="nofollow noopener noreferrer"><span class="invisible">https://</span><span class="">github.com/calmery/Pawopy</span><span class="invisible"></span></a></p>',
+        'filtered': [],
+        'reblog': None,
+        'application': {'name': 'Elk', 'website': 'https://elk.zone'},
+        'account': {
+            'id': 936436,
+            'username': 'shuuji3',
+            'acct': 'shuuji3',
+            'display_name': 'TAKAHASHI Shuuji 🌈✨',
+            'locked': False,
+            'bot': False,
+            'discoverable': False,
+            'group': False,
+            'created_at': datetime.datetime(2019, 10, 8, 0, 0, tzinfo=tzutc()),
+            'note': '<p>🧑🏻\u200d💻 software engineer / 🌟 like: opensource, technology, science, beautiful things, something fun, reasonable idea, &amp; fairness</p>',
+            'url': 'https://mastodon.social/@shuuji3',
+            'avatar': 'https://files.mastodon.social/accounts/avatars/000/936/436/original/4854d6cf9e12cb8f.png',
+            'avatar_static': 'https://files.mastodon.social/accounts/avatars/000/936/436/original/4854d6cf9e12cb8f.png',
+            'header': 'https://files.mastodon.social/accounts/headers/000/936/436/original/4d6989a698953e80.jpg',
+            'header_static': 'https://files.mastodon.social/accounts/headers/000/936/436/original/4d6989a698953e80.jpg',
+            'followers_count': 18,
+            'following_count': 33,
+            'statuses_count': 73,
+            'last_status_at': datetime.datetime(2023, 2, 3, 0, 0),
+            'noindex': False,
+            'emojis': [],
+            'fields': [
+                {
+                    'name': 'Website',
+                    'value': '<a href="https://shuuji3.xyz" target="_blank" rel="nofollow noopener noreferrer me"><span class="invisible">https://</span><span class="">shuuji3.xyz</span><span class="invisible"></span></a>',
+                    'verified_at': '2022-11-21T03:44:51.983+00:00'
+                },
+                {
+                    'name': 'GitHub',
+                    'value': '<a href="https://github.com/shuuji3" target="_blank" rel="nofollow noopener noreferrer me"><span class="invisible">https://</span><span class="">github.com/shuuji3</span><span class="invisible"></span></a>',
+                    'verified_at': '2022-12-19T17:22:50.150+00:00'
+                },
+                {
+                    'name': 'Takahē testing',
+                    'value': '<a href="https://takahe.social/@shuuji3" target="_blank" rel="nofollow noopener noreferrer me"><span class="invisible">https://</span><span class="">takahe.social/@shuuji3</span><span class="invisible"></span></a>',
+                    'verified_at': None
+                },
+                {
+                    'name': 'Blog',
+                    'value': '<a href="https://weblog.shuuji3.xyz" target="_blank" rel="nofollow noopener noreferrer me"><span class="invisible">https://</span><span class="">weblog.shuuji3.xyz</span><span class="invisible"></span></a>',
+                    'verified_at': None
+                }
+            ]
+        },
+        'media_attachments': [],
+        'mentions': [],
+        'tags': [],
+        'emojis': [],
+        'card': {
+            'url': 'https://github.com/calmery/Pawopy',
+            'title': 'GitHub - calmery/Pawopy: A Python wrapper for the Mastodon API like tweepy',
+            'description': 'A Python wrapper for the Mastodon API like tweepy. Contribute to calmery/Pawopy development by creating an account on GitHub.',
+            'type': 'link',
+            'author_name': '',
+            'author_url': '',
+            'provider_name': 'GitHub',
+            'provider_url': '',
+            'html': '',
+            'width': 400,
+            'height': 200,
+            'image': 'https://files.mastodon.social/cache/preview_cards/images/053/803/844/original/64ace706daf69a5e.png',
+            'embed_url': '',
+            'blurhash': 'UOS6Sut7fQt7%1ofj[ofE2Rjofj[~pRjj[WB'
+        },
+        'poll': None,
+    })
+
+
 def test_convert_user(mastodon_api, twitter_user):
     mastodon_user = mastodon_api.me()
     converted_user = convert_user(mastodon_user, verified_credentials=True)
     assert set(converted_user.keys()).issuperset(set(twitter_user.keys()))
+
+
+def test_convert_status(mastodon_api, mastodon_status, twitter_status):
+    converted_status = convert_status(mastodon_api, mastodon_status)
+    assert set(converted_status.keys()).issuperset(set(twitter_status.keys()))

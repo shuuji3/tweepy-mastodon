@@ -1,7 +1,37 @@
-from mastodon import AttribAccessDict
+from mastodon import Mastodon
 from mastodon.utility import AttribAccessDict
 
-from tweepy_mastodon.models import User
+
+def convert_status(mastondon_api: Mastodon, mastodon_status: AttribAccessDict) -> AttribAccessDict:
+    mastodon_status['author'] = convert_user(AttribAccessDict(mastodon_status['account']))
+    mastodon_status['contributors'] = None
+    mastodon_status['coordinates'] = None
+    mastodon_status['entities'] = {'hashtags': [], 'symbols': [], 'urls': [], 'user_mentions': []}  # TODO: fill values
+    mastodon_status['favorite_count'] = mastodon_status['favourites_count']
+    mastodon_status['retweet_count'] = mastodon_status['reblogs_count']
+
+    mastodon_status['favorited'] = mastodon_status['favourited']
+    mastodon_status['geo'] = None
+    mastodon_status['id'] = mastodon_status['id']
+    mastodon_status['id_str'] = str(mastodon_status['id'])
+    mastodon_status['in_reply_to_screen_name'] = mastondon_api.account(
+        mastodon_status['in_reply_to_account_id']).username
+    mastodon_status['in_reply_to_status_id'] = mastodon_status['in_reply_to_id']
+    mastodon_status['in_reply_to_status_id_str'] = str(mastodon_status['in_reply_to_id'])
+    mastodon_status['in_reply_to_user_id'] = mastodon_status['in_reply_to_account_id']
+    mastodon_status['in_reply_to_user_id_str'] = str(mastodon_status['in_reply_to_account_id'])
+    mastodon_status['is_quote_status'] = False
+    mastodon_status['lang'] = mastodon_status['language']
+    mastodon_status['place'] = None
+    mastodon_status['retweet_count'] = mastodon_status['reblogs_count']
+    mastodon_status['retweeted'] = mastodon_status['reblogged']
+    mastodon_status['source'] = mastodon_status['application']['name']
+    mastodon_status['source_url'] = mastodon_status['application']['website']
+    mastodon_status['text'] = mastodon_status['content']
+    mastodon_status['truncated'] = False
+    mastodon_status['user'] = mastodon_status['author']
+
+    return mastodon_status
 
 
 def convert_user(mastodon_account: AttribAccessDict, verified_credentials=False) -> AttribAccessDict:
@@ -11,17 +41,18 @@ def convert_user(mastodon_account: AttribAccessDict, verified_credentials=False)
     mastodon_account['description'] = mastodon_account.note
     mastodon_account['entities'] = {'description': {'urls': []}}  # tentative. what's this?
     mastodon_account['favourites_count'] = 0  # no corresponding attribute
-    mastodon_account['follow_request_sent'] = mastodon_account.source.follow_requests_count if verified_credentials else 0  # tentative
+    mastodon_account['follow_request_sent'] = mastodon_account.source.follow_requests_count if verified_credentials \
+        else 0
     mastodon_account['followers_count'] = mastodon_account.followers_count  # tentative
     mastodon_account['following'] = mastodon_account.following_count  # tentative
     mastodon_account['friends_count'] = 0  # no corresponding attribute
     mastodon_account['geo_enabled'] = False  # no corresponding attribute
-    mastodon_account['has_extended_profile'] = False  # no corresponding attribute but can be constructed from fields etc.?
+    mastodon_account['has_extended_profile'] = False  # no corresponding but can be constructed from fields etc.?
     mastodon_account['id'] = mastodon_account.id
     mastodon_account['id_str'] = str(mastodon_account.id)
     mastodon_account['is_translation_enabled'] = False  # no corresponding attribute
     mastodon_account['is_translator'] = False  # no corresponding attribute
-    mastodon_account['lang'] = mastodon_account.source.language if verified_credentials else None  # does this have the same format?
+    mastodon_account['lang'] = mastodon_account.source.language if verified_credentials else None  # same format?
     mastodon_account['listed_count'] = 0  # no corresponding attribute
     mastodon_account['location'] = ''  # tentative
     mastodon_account['name'] = mastodon_account.display_name
@@ -51,4 +82,4 @@ def convert_user(mastodon_account: AttribAccessDict, verified_credentials=False)
     mastodon_account['verified'] = False  # tentative
     mastodon_account['withheld_in_countries'] = []  # what's this?
 
-    return me
+    return mastodon_account
