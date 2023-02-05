@@ -3,7 +3,7 @@ from dateutil.tz import tzutc
 
 import pytest
 
-from tests.pytest.test_api import mastodon_api
+from tests.tweepy_mastodon.test_api import mastodon_api
 from tweepy_mastodon.utils import convert_user
 
 
