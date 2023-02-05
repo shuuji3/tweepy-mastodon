@@ -6,8 +6,6 @@ from tweepy_mastodon.tweepy.api import API as TweepyAPI
 log = logging.getLogger(__name__)
 
 from mastodon import Mastodon
-import os
-import sys
 
 
 class API(TweepyAPI):
