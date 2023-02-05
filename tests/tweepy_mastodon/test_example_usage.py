@@ -27,3 +27,7 @@ def test_example_usage():
     assert me.profile_background_image_url == 'https://files.mastodon.social/accounts/headers/000/936/436/original/4d6989a698953e80.jpg'
     assert me.created_at == datetime.datetime(2019, 10, 8, 0, 0, tzinfo=datetime.timezone.utc)
     assert me.avatar == 'https://files.mastodon.social/accounts/avatars/000/936/436/original/4854d6cf9e12cb8f.png'
+
+    assert me.status.favorited == False
+    assert me.status.retweeted == False
+    assert me.status.source == '<a href="https://elk.zone" rel="nofollow">Elk</a>'

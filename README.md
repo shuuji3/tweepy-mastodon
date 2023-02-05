@@ -19,6 +19,8 @@ An attempt to provide Mastodon API library with Tweepy-like interface, to help d
 Please prepare your Mastodon API credentials from the developer settings page (example URL: https://mastodon.social/settings/applications).
 
 ```py
+import datetime
+
 import tweepy_mastodon as tweepy
 
 api_base_url = 'mastodon.social'
@@ -36,23 +38,16 @@ api = tweepy.API(auth)
 
 me = api.verify_credentials()
 
-me.screen_name
-# => 'shuuji3'
+assert me.screen_name == 'shuuji3'
+assert me.display_name == 'TAKAHASHI Shuuji 🌈✨'
+assert me.url == 'https://shuuji3.xyz'
+assert me.profile_background_image_url == 'https://files.mastodon.social/accounts/headers/000/936/436/original/4d6989a698953e80.jpg'
+assert me.created_at == datetime.datetime(2019, 10, 8, 0, 0, tzinfo=datetime.timezone.utc)
+assert me.avatar == 'https://files.mastodon.social/accounts/avatars/000/936/436/original/4854d6cf9e12cb8f.png'
 
-me.display_name
-# => 'TAKAHASHI Shuuji 🌈✨'
-
-me.url
-# => 'https://shuuji3.xyz'
-
-me.profile_background_image_url
-# => 'https://files.mastodon.social/accounts/headers/000/936/436/original/4d6989a698953e80.jpg'
-
-me.created_at
-# => datetime.datetime(2019, 10, 8, 0, 0, tzinfo=tzutc())
-
-me.avatar
-# => 'https://files.mastodon.social/accounts/avatars/000/936/436/original/4854d6cf9e12cb8f.png'
+assert me.favorited == False
+assert me.retweeted == False
+assert me.status.source == '<a href="https://elk.zone" rel="nofollow">Elk</a>'
 ```
 
 ## Installation
