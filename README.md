@@ -8,6 +8,8 @@
 [![Test Status](https://github.com/shuuji3/tweepy-mastodon/workflows/Test/badge.svg)](https://github.com/shuuji3/tweepy-mastodon/actions?query=workflow%3ATest)
 [![Coverage Status](https://img.shields.io/coveralls/shuuji3/tweepy-mastodon/mastodon.svg?style=flat)](https://coveralls.io/github/shuuji3/tweepy-mastodon?branch=mastodon)
 
+![cherry blossom photo](https://files.mastodon.social/accounts/headers/000/936/436/original/4d6989a698953e80.jpg)
+
 > ⚠ This library is under development! Only partial features are implemented.
 
 An attempt to provide Mastodon API library with Tweepy-like interface, to help developers to migrate their good bot/service built with Tweepy to Mastodon easily.
