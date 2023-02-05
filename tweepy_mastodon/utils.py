@@ -33,12 +33,19 @@ def convert_status(
     mastodon_status['retweet_count'] = mastodon_status['reblogs_count']
     mastodon_status['retweeted'] = mastodon_status['reblogged']
     if is_user_embedded:
-        application_name = mastodon_status['application']['name']
-        application_url = mastodon_status['application']['website']
-        mastodon_status['source'] = f'<a href="{application_url}" rel="nofollow">{application_name}</a>'
+        if mastodon_status.get('application'):
+            application_name = mastodon_status['application']['name']
+            application_url = mastodon_status['application']['website']
+            mastodon_status['source'] = f'<a href="{application_url}" rel="nofollow">{application_name}</a>'
+        else:
+            mastodon_status['source'] = None
     else:
-        mastodon_status['source'] = mastodon_status['application']['name']
-        mastodon_status['source_url'] = mastodon_status['application']['website']
+        if mastodon_status.get('application'):
+            mastodon_status['source'] = mastodon_status['application']['name']
+            mastodon_status['source_url'] = mastodon_status['application']['website']
+        else:
+            mastodon_status['source'] = None
+            mastodon_status['source_url'] = None
     mastodon_status['text'] = mastodon_status['content']
     mastodon_status['truncated'] = False
     if not is_user_embedded:
