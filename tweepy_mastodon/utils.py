@@ -2,8 +2,10 @@ from mastodon import Mastodon
 from mastodon.utility import AttribAccessDict
 
 
-def convert_status(mastondon_api: Mastodon, mastodon_status: AttribAccessDict) -> AttribAccessDict:
-    mastodon_status['author'] = convert_user(mastondon_api, AttribAccessDict(mastodon_status['account']))
+def convert_status(mastondon_api: Mastodon, mastodon_status: AttribAccessDict,
+                   is_user_embedded=False) -> AttribAccessDict:
+    if not is_user_embedded:
+        mastodon_status['author'] = convert_user(mastondon_api, AttribAccessDict(mastodon_status['account']))
     mastodon_status['contributors'] = None
     mastodon_status['coordinates'] = None
     mastodon_status['entities'] = {'hashtags': [], 'symbols': [], 'urls': [], 'user_mentions': []}  # TODO: fill values
@@ -25,16 +27,26 @@ def convert_status(mastondon_api: Mastodon, mastodon_status: AttribAccessDict) -
     mastodon_status['place'] = None
     mastodon_status['retweet_count'] = mastodon_status['reblogs_count']
     mastodon_status['retweeted'] = mastodon_status['reblogged']
-    mastodon_status['source'] = mastodon_status['application']['name']
-    mastodon_status['source_url'] = mastodon_status['application']['website']
+    if is_user_embedded:
+        application_name = mastodon_status['application']['name']
+        application_url = mastodon_status['application']['website']
+        mastodon_status['source'] = f'<a href="{application_url}" rel="nofollow">{application_name}</a>'
+    else:
+        mastodon_status['source'] = mastodon_status['application']['name']
+        mastodon_status['source_url'] = mastodon_status['application']['website']
     mastodon_status['text'] = mastodon_status['content']
     mastodon_status['truncated'] = False
-    mastodon_status['user'] = mastodon_status['author']
+    if not is_user_embedded:
+        mastodon_status['user'] = mastodon_status['author']
 
     return mastodon_status
 
 
-def convert_user(mastodon_api: Mastodon, mastodon_account: AttribAccessDict, verified_credentials=False) -> AttribAccessDict:
+def convert_user(
+        mastodon_api: Mastodon,
+        mastodon_account: AttribAccessDict,
+        verified_credentials=False
+) -> AttribAccessDict:
     mastodon_account['contributors_enabled'] = False  # tentative. what's this?
     mastodon_account['default_profile'] = True  # tentative. what's this?
     mastodon_account['default_profile_image'] = False  # tentative. what's this?
@@ -71,11 +83,15 @@ def convert_user(mastodon_api: Mastodon, mastodon_account: AttribAccessDict, ver
     mastodon_account['profile_use_background_image'] = True  # tentative
     mastodon_account['protected'] = mastodon_account.locked
     mastodon_account['screen_name'] = mastodon_account.username
-    mastodon_account['status'] = 'TODO'  # TODO: construct Status instance
+    mastodon_account['status'] = convert_status(
+        mastodon_api,
+        mastodon_api.account_statuses(mastodon_account.id, limit=1)[0],
+        is_user_embedded=True
+    )
     mastodon_account['statuses_count'] = mastodon_account.statuses_count
     mastodon_account['suspended'] = False  # tentative
     mastodon_account['time_zone'] = None  # no corresponding attribute
-    mastodon_account['translator_type'] = None
+    mastodon_account['translator_type'] = 'none'
     fields = mastodon_account.source.fields if verified_credentials else mastodon_account.fields
     mastodon_account['url'] = fields[0]['value'] if len(fields) > 0 else None
     mastodon_account['utc_offset'] = None  # what's this?

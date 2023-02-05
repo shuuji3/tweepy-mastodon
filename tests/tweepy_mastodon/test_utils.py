@@ -290,7 +290,13 @@ def test_convert_user(mastodon_api, twitter_user):
     converted_user = convert_user(mastodon_api, mastodon_user, verified_credentials=True)
     assert set(converted_user.keys()).issuperset(set(twitter_user.keys()))
 
+    # Enable only during development since the mastodon data structure has extra properties and not exactly the same
+    # assert converted_user == twitter_user
+
 
 def test_convert_status(mastodon_api, mastodon_status, twitter_status):
     converted_status = convert_status(mastodon_api, mastodon_status)
     assert set(converted_status.keys()).issuperset(set(twitter_status.keys()))
+
+    # Enable only during development since the mastodon data structure has extra properties and not exactly the same
+    # assert converted_status == twitter_status
