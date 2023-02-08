@@ -57,7 +57,8 @@ def convert_status(
 def convert_user(
         mastodon_api: Mastodon,
         mastodon_account: AttribAccessDict,
-        verified_credentials=False
+        verified_credentials=False,
+        get_user=None
 ) -> AttribAccessDict:
     mastodon_account['contributors_enabled'] = False  # tentative. what's this?
     mastodon_account['default_profile'] = True  # tentative. what's this?
@@ -120,5 +121,9 @@ def convert_user(
     mastodon_account['utc_offset'] = None  # what's this?
     mastodon_account['verified'] = False  # tentative
     mastodon_account['withheld_in_countries'] = []  # what's this?
+
+    # The `api.get_user()` returns additional field.
+    if get_user:
+        mastodon_account['profile_location'] = None
 
     return mastodon_account

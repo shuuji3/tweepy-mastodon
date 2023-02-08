@@ -48,6 +48,16 @@ assert me.avatar == 'https://files.mastodon.social/accounts/avatars/000/936/436/
 assert me.favorited == False
 assert me.retweeted == False
 assert me.status.source == '<a href="https://elk.zone" rel="nofollow">Elk</a>'
+
+user = api.get_user(user_id=1)
+assert user.id_str == '1'
+assert user.screen_name == 'Gargron'
+assert user.name == 'Eugen Rochko'
+
+user = api.get_user(screen_name='npr@mstdn.social')
+assert user.id == 1201325
+assert user.screen_name == 'NPR@mstdn.social'
+assert user.name == 'NPR :verified:'
 ```
 
 ## Implemented API
@@ -58,7 +68,7 @@ assert me.status.source == '<a href="https://elk.zone" rel="nofollow">Elk</a>'
 | `api.verify_credentials()` | ✅ |  |
 | `api.update_status()` | ✅ | partially |
 | `api.home_timeline()` | ✅ | partially |
-| `api.get_user()` | 📝 TODO |  |
+| `api.get_user()` | ✅ | partially |
 | `api.get_status()` | 📝 TODO |  |
 | `api.update_status_with_media()` | 📝 TODO |  |
 | `api.create_favorite()` | 📝 TODO |  |

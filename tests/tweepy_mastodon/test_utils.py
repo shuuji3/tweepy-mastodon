@@ -91,21 +91,43 @@ def mastodon_user():
 
 
 @pytest.fixture
-def twitter_user():
+def twitter_verify_credentials(twitter_user):
     # api.verify_credentials().__dict__
+    del twitter_user['profile_location']
+    twitter_user['suspended'] = False
+    twitter_user['needs_phone_verification'] = False
+    return twitter_user
+
+
+@pytest.fixture
+def twitter_user():
+    # api.get_user.__dict__
     yield {
         'id': 1234567,
         'id_str': '1234567',
         'name': 'TAKAHASHI Shuuji',
         'screen_name': 'shuuji3',
         'location': '',
+        'profile_location': None,
         'description': (
             '<p>🧑🏻\u200d💻 software engineer / 🌟 like: opensource, '
             'technology, science, beautiful things, something fun, '
             'reasonable idea, &amp; fairness</p>'
         ),
         'url': None,
-        'entities': {'description': {'urls': []}},
+        'entities': {
+            'description': {'urls': []},
+            'url': {
+                'urls': [
+                    {
+                        'url': 'https://t.co/Wriee1u6Um',
+                        'expanded_url': 'https://github.com/sakuramochi0/kinpri-goods-wiki',
+                        'display_url': 'github.com/sakuramochi0/k…',
+                        'indices': [0, 23]
+                    }
+                ]
+            }
+        },
         'protected': False,
         'followers_count': 0,
         'friends_count': 0,
@@ -147,8 +169,6 @@ def twitter_user():
         'notifications': False,
         'translator_type': 'none',
         'withheld_in_countries': [],
-        'suspended': False,
-        'needs_phone_verification': False,
         # '_api': '<tweepy.api.API at 0x108c9f880>',
         # '_json': {
         #     'id': 1234567,
@@ -285,9 +305,19 @@ def mastodon_status():
     })
 
 
-def test_convert_user(mastodon_api, twitter_user):
+def test_convert_user_verifiy_credentials(mastodon_api, twitter_verify_credentials):
     mastodon_user = mastodon_api.me()
     converted_user = convert_user(mastodon_api, mastodon_user, verified_credentials=True)
+    assert set(converted_user.keys()).issuperset(set(twitter_verify_credentials.keys()))
+
+    # Enable only during development since the mastodon data structure has extra properties and not exactly the same
+    # assert converted_user == twitter_verify_credentials
+
+
+def test_convert_user(mastodon_api, twitter_user):
+    mastodon_user = mastodon_api.me()
+    converted_user = convert_user(mastodon_api, mastodon_user, verified_credentials=False, get_user=True)
+    print(twitter_user.keys() - converted_user.keys())
     assert set(converted_user.keys()).issuperset(set(twitter_user.keys()))
 
     # Enable only during development since the mastodon data structure has extra properties and not exactly the same

@@ -5,7 +5,7 @@ from tweepy_mastodon.tweepy.api import API as TweepyAPI
 
 log = logging.getLogger(__name__)
 
-from mastodon import Mastodon
+from mastodon import Mastodon, MastodonNotFoundError
 
 
 class API(TweepyAPI):
@@ -231,3 +231,40 @@ class API(TweepyAPI):
 
         post = self.mastodon.toot(status)
         return convert_status(self.mastodon, post)
+
+    def get_user(self, user_id=None, screen_name=None, include_entities=None):
+        """get_user(*, user_id, screen_name, include_entities)
+
+        Returns information about the specified user.
+
+        Parameters
+        ----------
+        user_id
+            |user_id|
+        screen_name
+            |screen_name|
+        include_entities
+            |include_entities|
+
+        Returns
+        -------
+        :class:`~tweepy.models.User`
+
+        References
+        ----------
+        https://developer.twitter.com/en/docs/twitter-api/v1/accounts-and-users/follow-search-get-users/api-reference/get-users-show
+        """
+        if include_entities is not None:
+            log.warning('`include_entities` is not implemented in tweepy-mastodon yet')
+
+        try:
+            if user_id:
+                user = self.mastodon.account(id=user_id)
+            elif screen_name:
+                user = self.mastodon.account_lookup(acct=screen_name)
+            else:
+                raise Exception('404 not found')  # TODO: use actual `tweepy.errors.NotFound`
+        except MastodonNotFoundError:
+            raise Exception('404 not found')  # TODO: use actual `tweepy.errors.NotFound`
+
+        return convert_user(self.mastodon, user, get_user=True)

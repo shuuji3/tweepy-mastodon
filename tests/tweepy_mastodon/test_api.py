@@ -55,3 +55,18 @@ def test_home_timeline(twitter_api: tweepy.API):
 def test_update_status(twitter_api: tweepy.API, mocker):
     # TODO: write test with mock
     pass
+
+
+def test_get_user(twitter_api: tweepy.API):
+    user = twitter_api.get_user(user_id=1)
+    assert user.id_str == '1'
+    assert user.screen_name == 'Gargron'
+    assert user.name == 'Eugen Rochko'
+
+    user = twitter_api.get_user(screen_name='npr@mstdn.social')
+    assert user.id == 1201325
+    assert user.screen_name == 'NPR@mstdn.social'
+    assert user.name == 'NPR :verified:'
+
+    with pytest.raises(Exception):
+        twitter_api.get_user(None, None)
