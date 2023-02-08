@@ -99,7 +99,7 @@ def convert_user(
     mastodon_account['profile_text_color'] = '333333'  # tentative
     mastodon_account['profile_use_background_image'] = True  # tentative
     mastodon_account['protected'] = mastodon_account.locked
-    mastodon_account['screen_name'] = mastodon_account.username
+    mastodon_account['screen_name'] = mastodon_account.acct
     mastodon_account['status'] = convert_status(
         mastodon_api,
         mastodon_api.account_statuses(mastodon_account.id, limit=1)[0],
