@@ -50,6 +50,22 @@ assert me.retweeted == False
 assert me.status.source == '<a href="https://elk.zone" rel="nofollow">Elk</a>'
 ```
 
+## Implemented API
+
+| API | Implemented? |
+| --- | -- |
+| `tweepy.OAuth1UserHandler` <br> (previously `tweepy.OAuthHandler` ) | ✅ |  |
+| `api.verify_credentials()` | ✅ |  |
+| `api.update_status()` | ✅ | partially |
+| `api.home_timeline()` | ✅ | partially |
+| `api.get_user()` | 📝 TODO |  |
+| `api.get_status()` | 📝 TODO |  |
+| `api.update_status_with_media()` | 📝 TODO |  |
+| `api.create_favorite()` | 📝 TODO |  |
+| `api.retweet()` | 📝 TODO |  |
+| ... | 📝 TODO |  |
+| `api.mastodon` | ✅ | Bonus: You can use any Mastodon.py API ✨ |
+
 ## Installation
 
 > TODO: Not published to PyPI yet!
