@@ -23,10 +23,12 @@ An attempt to provide Mastodon API library with Tweepy-like interface, to help d
 | `api.update_status()` | ✅ | partially |
 | `api.home_timeline()` | ✅ | partially |
 | `api.get_user()` | ✅ | partially |
+| `api.user_timeline()` | 📝 TODO |  |
 | `api.get_status()` | 📝 TODO |  |
 | `api.update_status_with_media()` | 📝 TODO |  |
 | `api.create_favorite()` | 📝 TODO |  |
 | `api.retweet()` | 📝 TODO |  |
+| `api.create_friendship()` <br> (a.k.a. follow) | 📝 TODO |  |
 | ... | 📝 TODO |  |
 | `api.mastodon` | ✅ | Bonus: You can use any Mastodon.py API ✨ |
 
