@@ -1,4 +1,4 @@
-# 🐘 tweepy-mastodon: [experimental] Mastodon API library with Tweepy interface for Python
+# 🐘 tweepy-mastodon: Mastodon API library with Tweepy interface for Python
 
 [![PyPI Version](https://img.shields.io/pypi/v/tweepy-mastodon?label=PyPI)](https://pypi.org/project/tweepy-mastodon/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/tweepy?label=Python)](https://pypi.org/project/tweepy/)
