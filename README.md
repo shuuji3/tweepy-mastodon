@@ -14,6 +14,22 @@
 
 An attempt to provide Mastodon API library with Tweepy-like interface, to help developers to migrate their good bot/service built with Tweepy to Mastodon easily.
 
+## Implemented API
+
+| API | Implemented? | Note |
+| --- | -- | -- |
+| `tweepy.OAuth1UserHandler` <br> (previously `tweepy.OAuthHandler` ) | ✅ |  |
+| `api.verify_credentials()` | ✅ |  |
+| `api.update_status()` | ✅ | partially |
+| `api.home_timeline()` | ✅ | partially |
+| `api.get_user()` | ✅ | partially |
+| `api.get_status()` | 📝 TODO |  |
+| `api.update_status_with_media()` | 📝 TODO |  |
+| `api.create_favorite()` | 📝 TODO |  |
+| `api.retweet()` | 📝 TODO |  |
+| ... | 📝 TODO |  |
+| `api.mastodon` | ✅ | Bonus: You can use any Mastodon.py API ✨ |
+
 ## Example usage
 
 Please prepare your Mastodon API credentials from the developer settings page (example URL: https://mastodon.social/settings/applications).
@@ -59,22 +75,6 @@ assert user.id == 1201325
 assert user.screen_name == 'NPR@mstdn.social'
 assert user.name == 'NPR :verified:'
 ```
-
-## Implemented API
-
-| API | Implemented? |
-| --- | -- |
-| `tweepy.OAuth1UserHandler` <br> (previously `tweepy.OAuthHandler` ) | ✅ |  |
-| `api.verify_credentials()` | ✅ |  |
-| `api.update_status()` | ✅ | partially |
-| `api.home_timeline()` | ✅ | partially |
-| `api.get_user()` | ✅ | partially |
-| `api.get_status()` | 📝 TODO |  |
-| `api.update_status_with_media()` | 📝 TODO |  |
-| `api.create_favorite()` | 📝 TODO |  |
-| `api.retweet()` | 📝 TODO |  |
-| ... | 📝 TODO |  |
-| `api.mastodon` | ✅ | Bonus: You can use any Mastodon.py API ✨ |
 
 ## Installation
 
