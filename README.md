@@ -78,6 +78,11 @@ assert user.name == 'NPR :verified:'
 
 user_statuses = api.user_timeline(user_id=1, since_id=0, count=10)
 assert len(user_statuses) == 10
+
+status_id = 109813536848077879 # ref. https://mastodon.social/@shuuji3/109813536848077879
+status = api.get_status(id=status_id)
+assert status.user.screen_name == 'shuuji3'
+assert 'Hello from tweepy-mastodon!' in status.text
 ```
 
 ## Installation
