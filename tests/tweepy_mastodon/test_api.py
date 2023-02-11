@@ -129,14 +129,6 @@ def test_unretweet(twitter_api: tweepy.API):
     pass
 
 
-def test_destroy_friendship(twitter_api: tweepy.API):
-    relationship = twitter_api.destroy_friendship(screen_name='shuuji3@takahe.social')
-    assert not relationship.following
-
-    with pytest.raises(Exception):
-        twitter_api.destroy_friendship(user_id=-1)
-
-
 def test_create_friendship(twitter_api: tweepy.API):
     relationship = twitter_api.create_friendship(screen_name='shuuji3@takahe.social', follow=True)
     assert relationship.following
@@ -145,9 +137,19 @@ def test_create_friendship(twitter_api: tweepy.API):
         twitter_api.create_friendship(user_id=-1)
 
 
+def test_destroy_friendship(twitter_api: tweepy.API):
+    # TODO implement without disruption
+    # relationship = twitter_api.destroy_friendship(screen_name='shuuji3@takahe.social')
+    # assert not relationship.following
+
+    with pytest.raises(Exception):
+        twitter_api.destroy_friendship(user_id=-1)
+
+
 def test_create_mute(twitter_api: tweepy.API):
-    user = twitter_api.create_mute(screen_name='shuuji3@takahe.social')
-    assert user
+    # TODO implement without disruption
+    # user = twitter_api.create_mute(screen_name='shuuji3@takahe.social')
+    # assert user
 
     with pytest.raises(Exception):
         twitter_api.create_mute(user_id=-1)
@@ -158,4 +160,4 @@ def test_destroy_mute(twitter_api: tweepy.API):
     assert user
 
     with pytest.raises(Exception):
-        twitter_api.create_mute(user_id=-1)
+        twitter_api.destroy_mute(user_id=-1)
