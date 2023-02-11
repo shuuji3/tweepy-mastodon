@@ -269,7 +269,6 @@ class API(TweepyAPI):
 
         return convert_user(self.mastodon, user, get_user=True)
 
-
     def user_timeline(
             self,
             user_id=None,
@@ -329,3 +328,56 @@ class API(TweepyAPI):
             post = convert_status(self.mastodon, mastodon_post)
             posts.append(post)
         return posts
+
+    def get_status(
+            self,
+            id,
+            trim_user=None,
+            include_my_retweet=None,
+            include_entities=None,
+            include_ext_alt_text=None,
+            include_card_uri=None
+    ):
+        """get_status(id, *, trim_user, include_my_retweet, include_entities, \
+                      include_ext_alt_text, include_card_uri)
+
+        Returns a single status specified by the ID parameter.
+
+        Parameters
+        ----------
+        id:
+            |sid|
+        trim_user
+            |trim_user|
+        include_my_retweet:
+            A boolean indicating if any Tweets returned that have been
+            retweeted by the authenticating user should include an additional
+            current_user_retweet node, containing the ID of the source status
+            for the retweet.
+        include_entities
+            |include_entities|
+        include_ext_alt_text
+            |include_ext_alt_text|
+        include_card_uri
+            |include_card_uri|
+
+        Returns
+        -------
+        :class:`~tweepy.models.Status`
+
+        References
+        ----------
+        https://developer.twitter.com/en/docs/twitter-api/v1/tweets/post-and-engage/api-reference/get-statuses-show-id
+        """
+
+        if trim_user is not None \
+                or include_my_retweet is not None \
+                or include_entities is not None \
+                or include_ext_alt_text is not None \
+                or include_card_uri is not None:
+            log.warning(
+                '`trim_user`, `include_my_retweet`, `include_entities`, `include_ext_alt_text`, '
+                'and `include_card_uri` are not implemented in tweepy-mastodon yet')
+
+        status = self.mastodon.status(id=id)
+        return convert_status(self.mastodon, status, include_user_status=False)

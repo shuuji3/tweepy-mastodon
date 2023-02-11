@@ -19,11 +19,11 @@ An attempt to provide Mastodon API library with Tweepy-like interface, to help d
 | --- | -- | -- |
 | `tweepy.OAuth1UserHandler` <br> (previously `tweepy.OAuthHandler` ) | ✅ |  |
 | `api.verify_credentials()` | ✅ |  |
-| `api.update_status()` | ✅ | partially |
-| `api.home_timeline()` | ✅ | partially |
-| `api.get_user()` | ✅ | partially |
-| `api.user_timeline()` | ✅ | partially |
-| `api.get_status()` | 📝 TODO |  |
+| `api.update_status()` | ✅ | partially implemented |
+| `api.home_timeline()` | ✅ | partially implemented |
+| `api.get_user()` | ✅ | partially implemented |
+| `api.user_timeline()` | ✅ | partially implemented |
+| `api.get_status()` | ✅ | partially implemented |
 | `api.update_status_with_media()` | 📝 TODO |  |
 | `api.create_favorite()` | 📝 TODO |  |
 | `api.retweet()` | 📝 TODO |  |

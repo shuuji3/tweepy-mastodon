@@ -5,10 +5,15 @@ from mastodon.utility import AttribAccessDict
 def convert_status(
         mastodon_api: Mastodon,
         mastodon_status: AttribAccessDict,
-        is_user_embedded=False
+        is_user_embedded=False,
+        include_user_status=True,
 ) -> AttribAccessDict:
     if not is_user_embedded:
-        mastodon_status['author'] = convert_user(mastodon_api, AttribAccessDict(mastodon_status['account']))
+        mastodon_status['author'] = convert_user(
+            mastodon_api,
+            AttribAccessDict(mastodon_status['account']),
+            include_status=include_user_status
+        )
     mastodon_status['contributors'] = None
     mastodon_status['coordinates'] = None
     mastodon_status['entities'] = {'hashtags': [], 'symbols': [], 'urls': [], 'user_mentions': []}  # TODO: fill values
@@ -58,7 +63,8 @@ def convert_user(
         mastodon_api: Mastodon,
         mastodon_account: AttribAccessDict,
         verified_credentials=False,
-        get_user=None
+        get_user=None,
+        include_status=True,
 ) -> AttribAccessDict:
     mastodon_account['contributors_enabled'] = False  # tentative. what's this?
     mastodon_account['default_profile'] = True  # tentative. what's this?
@@ -101,11 +107,12 @@ def convert_user(
     mastodon_account['profile_use_background_image'] = True  # tentative
     mastodon_account['protected'] = mastodon_account.locked
     mastodon_account['screen_name'] = mastodon_account.acct
-    mastodon_account['status'] = convert_status(
-        mastodon_api,
-        mastodon_api.account_statuses(mastodon_account.id, limit=1)[0],
-        is_user_embedded=True
-    )
+    if include_status:
+        mastodon_account['status'] = convert_status(
+            mastodon_api,
+            mastodon_api.account_statuses(mastodon_account.id, limit=1)[0],
+            is_user_embedded=True
+        )
     mastodon_account['statuses_count'] = mastodon_account.statuses_count
     mastodon_account['suspended'] = False  # tentative
     mastodon_account['time_zone'] = None  # no corresponding attribute

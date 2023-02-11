@@ -77,3 +77,14 @@ def test_user_timeline(twitter_api: tweepy.API):
     assert len(statuses) == 1
     assert statuses[0].user.screen_name
     assert type(statuses[0].text) is str
+
+
+def test_get_status(twitter_api: tweepy.API):
+    # 'Hello from tweepy-mastodon!'
+    # ref. https://mastodon.social/@shuuji3/109813536848077879
+    status_id = 109813536848077879
+    status = twitter_api.get_status(id=status_id)
+    assert status.user.screen_name == 'shuuji3'
+    assert 'Hello from tweepy-mastodon!' in status.text
+    with pytest.raises(AttributeError):
+        status.user.status
