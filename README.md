@@ -20,13 +20,23 @@ An attempt to provide Mastodon API library with Tweepy-like interface, to help d
 | `tweepy.OAuth1UserHandler` <br> (previously `tweepy.OAuthHandler` ) | ✅ |  |
 | `api.verify_credentials()` | ✅ |  |
 | `api.update_status()` | ✅ | partially implemented |
+| `api.destroy_status()` | 📝 TODO |  |
 | `api.home_timeline()` | ✅ | partially implemented |
 | `api.get_user()` | ✅ | partially implemented |
 | `api.user_timeline()` | ✅ | partially implemented |
 | `api.get_status()` | ✅ | partially implemented |
 | `api.create_favorite()` | ✅ | partially implemented |
+| `api.destroy_favorite()` | 📝 TODO |  |
 | `api.retweet()` | ✅ | partially implemented |
+| `api.unretweet()` | 📝 TODO |  |
 | `api.create_friendship()` <br> (a.k.a. follow) | 📝 TODO |  |
+| `api.destroy_friendship()` <br> (a.k.a. unfollow) | 📝 TODO |  |
+| `api.create_mute()` | 📝 TODO |  |
+| `api.destroy_mute()` | 📝 TODO |  |
+| `api.create_block()` | 📝 TODO |  |
+| `api.destroy_block()` | 📝 TODO |  |
+| `api.create_list()` | 📝 TODO |  |
+| `api.destroy_list()` | 📝 TODO |  |
 | `api.update_status_with_media()` | 📝 TODO |  |
 | ... | 📝 TODO |  |
 | `api.mastodon` | ✅ | Bonus: You can use any Mastodon.py API ✨ |
