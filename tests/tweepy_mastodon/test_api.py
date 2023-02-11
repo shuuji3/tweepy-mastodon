@@ -143,3 +143,19 @@ def test_create_friendship(twitter_api: tweepy.API):
 
     with pytest.raises(Exception):
         twitter_api.create_friendship(user_id=-1)
+
+
+def test_create_mute(twitter_api: tweepy.API):
+    user = twitter_api.create_mute(screen_name='shuuji3@takahe.social')
+    assert user
+
+    with pytest.raises(Exception):
+        twitter_api.create_mute(user_id=-1)
+
+
+def test_destroy_mute(twitter_api: tweepy.API):
+    user = twitter_api.destroy_mute(screen_name='shuuji3@takahe.social')
+    assert user
+
+    with pytest.raises(Exception):
+        twitter_api.create_mute(user_id=-1)

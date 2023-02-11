@@ -591,13 +591,11 @@ class API(TweepyAPI):
         ----------
         https://developer.twitter.com/en/docs/twitter-api/v1/accounts-and-users/mute-block-report-users/api-reference/post-mutes-users-create
         """
-        return self.request(
-            'POST', 'mutes/users/create', endpoint_parameters=(
-                'screen_name', 'user_id'
-            ), **kwargs
-        )
+        user = self.get_user(user_id, screen_name)
+        self.mastodon.account_mute(id=user.id)
+        return user
 
-    def destroy_mute(self, **kwargs):
+    def destroy_mute(self, screen_name=None, user_id=None):
         """destroy_mute(*, screen_name, user_id)
 
         Un-mutes the user specified in the ID parameter for the authenticating
@@ -618,4 +616,6 @@ class API(TweepyAPI):
         ----------
         https://developer.twitter.com/en/docs/twitter-api/v1/accounts-and-users/mute-block-report-users/api-reference/post-mutes-users-destroy
         """
-        return self.reques
+        user = self.get_user(user_id, screen_name)
+        self.mastodon.account_unmute(id=user.id)
+        return user
