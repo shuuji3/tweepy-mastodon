@@ -51,7 +51,9 @@ def convert_status(
         else:
             mastodon_status['source'] = None
             mastodon_status['source_url'] = None
-    mastodon_status['text'] = mastodon_status['content']
+    content = mastodon_status.get('content')
+    if content:
+        mastodon_status['text'] = mastodon_status['content']
     mastodon_status['truncated'] = False
     if not is_user_embedded:
         mastodon_status['user'] = mastodon_status['author']
