@@ -70,6 +70,7 @@ def test_get_user(twitter_api: tweepy.API):
 
     with pytest.raises(Exception):
         twitter_api.get_user(None, None)
+        twitter_api.get_user(-1)
 
 
 def test_user_timeline(twitter_api: tweepy.API):
