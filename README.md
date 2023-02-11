@@ -25,7 +25,7 @@ An attempt to provide Mastodon API library with Tweepy-like interface, to help d
 | `api.user_timeline()` | ✅ | partially implemented |
 | `api.get_status()` | ✅ | partially implemented |
 | `api.create_favorite()` | ✅ | partially implemented |
-| `api.retweet()` | 📝 TODO |  |
+| `api.retweet()` | ✅ | partially implemented |
 | `api.create_friendship()` <br> (a.k.a. follow) | 📝 TODO |  |
 | `api.update_status_with_media()` | 📝 TODO |  |
 | ... | 📝 TODO |  |

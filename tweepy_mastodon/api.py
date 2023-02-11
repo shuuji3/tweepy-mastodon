@@ -413,3 +413,34 @@ class API(TweepyAPI):
         except MastodonNotFoundError:
             raise Exception('404 not found')  # TODO: use actual `tweepy.errors.NotFound`
 
+
+    def retweet(self, id, trim_user=None):
+        """retweet(id, *, trim_user)
+
+        Retweets a Tweet. Requires the ID of the Tweet you are retweeting.
+
+        Parameters
+        ----------
+        id
+            |sid|
+        trim_user
+            |trim_user|
+
+        Returns
+        -------
+        :class:`~tweepy.models.Status`
+
+        References
+        ----------
+        https://developer.twitter.com/en/docs/twitter-api/v1/tweets/post-and-engage/api-reference/post-statuses-retweet-id
+        """
+
+        if trim_user is not None:
+            log.warning('`trim_user` are not implemented in tweepy-mastodon yet')
+
+        try:
+            mastodon_status = self.mastodon.status_reblog(id=id)
+            return convert_status(self.mastodon, mastodon_status, include_user_status=False)
+        except MastodonNotFoundError:
+            raise Exception('404 not found')  # TODO: use actual `tweepy.errors.NotFound`
+
