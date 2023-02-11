@@ -129,7 +129,7 @@ def test_unretweet(twitter_api: tweepy.API):
     pass
 
 
-def test_unfollow(twitter_api: tweepy.API):
+def test_destroy_friendship(twitter_api: tweepy.API):
     relationship = twitter_api.destroy_friendship(screen_name='shuuji3@takahe.social')
     assert not relationship.following
 
@@ -137,7 +137,7 @@ def test_unfollow(twitter_api: tweepy.API):
         twitter_api.destroy_friendship(user_id=-1)
 
 
-def test_follow(twitter_api: tweepy.API):
+def test_create_friendship(twitter_api: tweepy.API):
     relationship = twitter_api.create_friendship(screen_name='shuuji3@takahe.social', follow=True)
     assert relationship.following
 
