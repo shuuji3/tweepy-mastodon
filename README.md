@@ -24,10 +24,10 @@ An attempt to provide Mastodon API library with Tweepy-like interface, to help d
 | `api.get_user()` | ✅ | partially implemented |
 | `api.user_timeline()` | ✅ | partially implemented |
 | `api.get_status()` | ✅ | partially implemented |
-| `api.update_status_with_media()` | 📝 TODO |  |
-| `api.create_favorite()` | 📝 TODO |  |
+| `api.create_favorite()` | ✅ | partially implemented |
 | `api.retweet()` | 📝 TODO |  |
 | `api.create_friendship()` <br> (a.k.a. follow) | 📝 TODO |  |
+| `api.update_status_with_media()` | 📝 TODO |  |
 | ... | 📝 TODO |  |
 | `api.mastodon` | ✅ | Bonus: You can use any Mastodon.py API ✨ |
 
@@ -83,6 +83,9 @@ status_id = 109813536848077879 # ref. https://mastodon.social/@shuuji3/109813536
 status = api.get_status(id=status_id)
 assert status.user.screen_name == 'shuuji3'
 assert 'Hello from tweepy-mastodon!' in status.text
+
+status = api.create_favorite(id=status_id)
+assert status.favourited
 ```
 
 ## Installation

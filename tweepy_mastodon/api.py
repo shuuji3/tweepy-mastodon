@@ -381,3 +381,35 @@ class API(TweepyAPI):
 
         status = self.mastodon.status(id=id)
         return convert_status(self.mastodon, status, include_user_status=False)
+
+    def create_favorite(self, id, include_entities=None):
+        """create_favorite(id, *, include_entities)
+
+        Favorites the status specified in the ``id`` parameter as the
+        authenticating user.
+
+        Parameters
+        ----------
+        id
+            |sid|
+        include_entities
+            |include_entities|
+
+        Returns
+        -------
+        :class:`~tweepy.models.Status`
+
+        References
+        ----------
+        https://developer.twitter.com/en/docs/twitter-api/v1/tweets/post-and-engage/api-reference/post-favorites-create
+        """
+
+        if include_entities is not None:
+            log.warning('`include_entities` are not implemented in tweepy-mastodon yet')
+
+        try:
+            mastodon_status = self.mastodon.status_favourite(id=id)
+            return convert_status(self.mastodon, mastodon_status, include_user_status=False)
+        except MastodonNotFoundError:
+            raise Exception('404 not found')  # TODO: use actual `tweepy.errors.NotFound`
+

@@ -88,3 +88,17 @@ def test_get_status(twitter_api: tweepy.API):
     assert 'Hello from tweepy-mastodon!' in status.text
     with pytest.raises(AttributeError):
         status.user.status
+
+
+def test_create_favorite(twitter_api: tweepy.API):
+    # 'Hello from tweepy-mastodon!'
+    # ref. https://mastodon.social/@shuuji3/109813536848077879
+    status_id = 109813536848077879
+    status = twitter_api.create_favorite(id=status_id)
+    assert status.favourited
+    assert status.user.screen_name == 'shuuji3'
+    assert 'Hello from tweepy-mastodon!' in status.text
+
+
+    with pytest.raises(Exception):
+        twitter_api.create_favorite(id=-1)
