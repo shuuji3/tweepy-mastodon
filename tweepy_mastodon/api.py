@@ -538,7 +538,6 @@ class API(TweepyAPI):
         except MastodonNotFoundError:
             raise Exception('404 not found')  # TODO: use actual `tweepy.errors.NotFound`
 
-
     def destroy_friendship(self, screen_name=None, user_id=None):
         """destroy_friendship(*, screen_name, user_id)
 
@@ -560,7 +559,7 @@ class API(TweepyAPI):
         https://developer.twitter.com/en/docs/twitter-api/v1/accounts-and-users/follow-search-get-users/api-reference/post-friendships-destroy
         """
         try:
-            user: User = self.get_user(user_id, screen_name)
+            user = self.get_user(user_id, screen_name)
             relationship = self.mastodon.account_unfollow(id=user.id)
 
             user['following'] = relationship.following
@@ -571,3 +570,52 @@ class API(TweepyAPI):
         except MastodonNotFoundError:
             raise Exception('404 not found')  # TODO: use actual `tweepy.errors.NotFound`
 
+    def create_mute(self, screen_name=None, user_id=None):
+        """create_mute(*, screen_name, user_id)
+
+        Mutes the user specified in the ID parameter for the authenticating
+        user.
+
+        Parameters
+        ----------
+        screen_name
+            |screen_name|
+        user_id
+            |user_id|
+
+        Returns
+        -------
+        :class:`~tweepy.models.User`
+
+        References
+        ----------
+        https://developer.twitter.com/en/docs/twitter-api/v1/accounts-and-users/mute-block-report-users/api-reference/post-mutes-users-create
+        """
+        return self.request(
+            'POST', 'mutes/users/create', endpoint_parameters=(
+                'screen_name', 'user_id'
+            ), **kwargs
+        )
+
+    def destroy_mute(self, **kwargs):
+        """destroy_mute(*, screen_name, user_id)
+
+        Un-mutes the user specified in the ID parameter for the authenticating
+        user.
+
+        Parameters
+        ----------
+        screen_name
+            |screen_name|
+        user_id
+            |user_id|
+
+        Returns
+        -------
+        :class:`~tweepy.models.User`
+
+        References
+        ----------
+        https://developer.twitter.com/en/docs/twitter-api/v1/accounts-and-users/mute-block-report-users/api-reference/post-mutes-users-destroy
+        """
+        return self.reques
