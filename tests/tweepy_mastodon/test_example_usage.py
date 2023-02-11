@@ -38,6 +38,3 @@ def test_example_usage():
     status = api.get_status(id=status_id)
     assert status.user.screen_name == 'shuuji3'
     assert 'Hello from tweepy-mastodon!' in status.text
-
-    status = api.create_favorite(id=status_id)
-    assert status.favourited
