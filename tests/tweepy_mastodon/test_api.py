@@ -127,3 +127,19 @@ def test_retweet(twitter_api: tweepy.API):
 def test_unretweet(twitter_api: tweepy.API):
     # TODO implement without disruption
     pass
+
+
+def test_unfollow(twitter_api: tweepy.API):
+    relationship = twitter_api.destroy_friendship(screen_name='shuuji3@takahe.social')
+    assert not relationship.following
+
+    with pytest.raises(Exception):
+        twitter_api.destroy_friendship(user_id=-1)
+
+
+def test_follow(twitter_api: tweepy.API):
+    relationship = twitter_api.create_friendship(screen_name='shuuji3@takahe.social', follow=True)
+    assert relationship.following
+
+    with pytest.raises(Exception):
+        twitter_api.create_friendship(user_id=-1)

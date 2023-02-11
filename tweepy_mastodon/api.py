@@ -502,3 +502,72 @@ class API(TweepyAPI):
             return convert_status(self.mastodon, mastodon_status, include_user_status=False)
         except MastodonNotFoundError:
             raise Exception('404 not found')  # TODO: use actual `tweepy.errors.NotFound`
+
+    def create_friendship(self, screen_name=None, user_id=None, follow=False):
+        """create_friendship(*, screen_name, user_id, follow)
+
+        Create a new friendship with the specified user (aka follow).
+
+        Parameters
+        ----------
+        screen_name
+            |screen_name|
+        user_id
+            |user_id|
+        follow
+            Enable notifications for the target user in addition to becoming
+            friends.
+
+        Returns
+        -------
+        :class:`~tweepy.models.User`
+
+        References
+        ----------
+        https://developer.twitter.com/en/docs/twitter-api/v1/accounts-and-users/follow-search-get-users/api-reference/post-friendships-create
+        """
+        try:
+            user = self.get_user(user_id, screen_name)
+            relationship = self.mastodon.account_follow(id=user.id, notify=follow)
+
+            user['following'] = relationship.following
+            user['notifications'] = relationship.notifying
+            user['follow_request_sent'] = relationship.requested
+
+            return user
+        except MastodonNotFoundError:
+            raise Exception('404 not found')  # TODO: use actual `tweepy.errors.NotFound`
+
+
+    def destroy_friendship(self, screen_name=None, user_id=None):
+        """destroy_friendship(*, screen_name, user_id)
+
+        Destroy a friendship with the specified user (aka unfollow).
+
+        Parameters
+        ----------
+        screen_name
+            |screen_name|
+        user_id
+            |user_id|
+
+        Returns
+        -------
+        :class:`~tweepy.models.User`
+
+        References
+        ----------
+        https://developer.twitter.com/en/docs/twitter-api/v1/accounts-and-users/follow-search-get-users/api-reference/post-friendships-destroy
+        """
+        try:
+            user: User = self.get_user(user_id, screen_name)
+            relationship = self.mastodon.account_unfollow(id=user.id)
+
+            user['following'] = relationship.following
+            user['notifications'] = relationship.notifying
+            user['follow_request_sent'] = relationship.requested
+
+            return user
+        except MastodonNotFoundError:
+            raise Exception('404 not found')  # TODO: use actual `tweepy.errors.NotFound`
+

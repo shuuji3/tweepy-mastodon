@@ -29,8 +29,8 @@ An attempt to provide Mastodon API library with Tweepy-like interface, to help d
 | `api.destroy_favorite()` | ✅ | partially implemented |
 | `api.retweet()` | ✅ | partially implemented |
 | `api.unretweet()` | ✅ | partially implemented |
-| `api.create_friendship()` <br> (a.k.a. follow) | 📝 TODO |  |
-| `api.destroy_friendship()` <br> (a.k.a. unfollow) | 📝 TODO |  |
+| `api.create_friendship()` <br> (a.k.a. follow) | ✅ |  |
+| `api.destroy_friendship()` <br> (a.k.a. unfollow) | ✅ |  |
 | `api.create_mute()` | 📝 TODO |  |
 | `api.destroy_mute()` | 📝 TODO |  |
 | `api.create_block()` | 📝 TODO |  |
