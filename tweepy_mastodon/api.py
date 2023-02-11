@@ -232,6 +232,32 @@ class API(TweepyAPI):
         post = self.mastodon.toot(status)
         return convert_status(self.mastodon, post)
 
+    def destroy_status(self, id=None, trim_user=None):
+        """destroy_status(id, *, trim_user)
+
+        Destroy the status specified by the ``id`` parameter. The authenticated
+        user must be the author of the status to destroy.
+
+        Parameters
+        ----------
+        id
+            |sid|
+        trim_user
+            |trim_user|
+
+        Returns
+        -------
+        :class:`~tweepy.models.Status`
+
+        References
+        ----------
+        https://developer.twitter.com/en/docs/twitter-api/v1/tweets/post-and-engage/api-reference/post-statuses-destroy-id
+        """
+        if trim_user is not None:
+            log.warning('`trim_user` is not implemented in tweepy-mastodon yet')
+
+        return convert_status(self.mastodon, self.mastodon.status_delete(id=id))
+
     def get_user(self, user_id=None, screen_name=None, include_entities=None):
         """get_user(*, user_id, screen_name, include_entities)
 

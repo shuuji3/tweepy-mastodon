@@ -20,7 +20,7 @@ An attempt to provide Mastodon API library with Tweepy-like interface, to help d
 | `tweepy.OAuth1UserHandler` <br> (previously `tweepy.OAuthHandler` ) | ✅ |  |
 | `api.verify_credentials()` | ✅ |  |
 | `api.update_status()` | ✅ | partially implemented |
-| `api.destroy_status()` | 📝 TODO |  |
+| `api.destroy_status()` | ✅ | partially implemented |
 | `api.home_timeline()` | ✅ | partially implemented |
 | `api.get_user()` | ✅ | partially implemented |
 | `api.user_timeline()` | ✅ | partially implemented |
