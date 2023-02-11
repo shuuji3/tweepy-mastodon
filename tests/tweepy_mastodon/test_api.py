@@ -102,6 +102,17 @@ def test_create_favorite(twitter_api: tweepy.API):
         twitter_api.create_favorite(id=-1)
 
 
+def test_destroy_favorite(twitter_api: tweepy.API):
+    # 'Hello from tweepy-mastodon!'
+    # ref. https://mastodon.social/@shuuji3/109813536848077879
+    status_id = 109813536848077879
+    status = twitter_api.destroy_favorite(id=status_id)
+    assert not status.favorited
+
+    with pytest.raises(Exception):
+        twitter_api.destroy_favorite(id=-1)
+
+
 def test_retweet(twitter_api: tweepy.API):
     # 'Hello from tweepy-mastodon!'
     # ref. https://mastodon.social/@shuuji3/109813536848077879
@@ -111,3 +122,8 @@ def test_retweet(twitter_api: tweepy.API):
 
     with pytest.raises(Exception):
         twitter_api.retweet(id=-1)
+
+
+def test_unretweet(twitter_api: tweepy.API):
+    # TODO implement without disruption
+    pass

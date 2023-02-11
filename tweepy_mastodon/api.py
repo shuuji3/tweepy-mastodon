@@ -413,6 +413,35 @@ class API(TweepyAPI):
         except MastodonNotFoundError:
             raise Exception('404 not found')  # TODO: use actual `tweepy.errors.NotFound`
 
+    def destroy_favorite(self, id, include_entities=None):
+        """destroy_favorite(id, *, include_entities)
+
+        Un-favorites the status specified in the ``id`` parameter as the
+        authenticating user.
+
+        Parameters
+        ----------
+        id
+            |sid|
+        include_entities
+            |include_entities|
+
+        Returns
+        -------
+        :class:`~tweepy.models.Status`
+
+        References
+        ----------
+        https://developer.twitter.com/en/docs/twitter-api/v1/tweets/post-and-engage/api-reference/post-favorites-destroy
+        """
+        if include_entities is not None:
+            log.warning('`include_entities` are not implemented in tweepy-mastodon yet')
+
+        try:
+            mastodon_status = self.mastodon.status_unfavourite(id=id)
+            return convert_status(self.mastodon, mastodon_status, include_user_status=False)
+        except MastodonNotFoundError:
+            raise Exception('404 not found')  # TODO: use actual `tweepy.errors.NotFound`
 
     def retweet(self, id, trim_user=None):
         """retweet(id, *, trim_user)
@@ -444,3 +473,32 @@ class API(TweepyAPI):
         except MastodonNotFoundError:
             raise Exception('404 not found')  # TODO: use actual `tweepy.errors.NotFound`
 
+    def unretweet(self, id, trim_user=None):
+        """unretweet(id, *, trim_user)
+
+        Untweets a retweeted status. Requires the ID of the retweet to
+        unretweet.
+
+        Parameters
+        ----------
+        id
+            |sid|
+        trim_user
+            |trim_user|
+
+        Returns
+        -------
+        :class:`~tweepy.models.Status`
+
+        References
+        ----------
+        https://developer.twitter.com/en/docs/twitter-api/v1/tweets/post-and-engage/api-reference/post-statuses-unretweet-id
+        """
+        if trim_user is not None:
+            log.warning('`trim_user` are not implemented in tweepy-mastodon yet')
+
+        try:
+            mastodon_status = self.mastodon.status_unreblog(id=id)
+            return convert_status(self.mastodon, mastodon_status, include_user_status=False)
+        except MastodonNotFoundError:
+            raise Exception('404 not found')  # TODO: use actual `tweepy.errors.NotFound`
