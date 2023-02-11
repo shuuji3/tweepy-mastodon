@@ -268,3 +268,64 @@ class API(TweepyAPI):
             raise Exception('404 not found')  # TODO: use actual `tweepy.errors.NotFound`
 
         return convert_user(self.mastodon, user, get_user=True)
+
+
+    def user_timeline(
+            self,
+            user_id=None,
+            screen_name=None,
+            since_id=None,
+            count=None,
+            max_id=None,
+            trim_user=None,
+            exclude_replies=None,
+            include_rts=None
+    ):
+        """user_timeline(*, user_id, screen_name, since_id, count, max_id,
+                        trim_user, exclude_replies, include_rts)
+
+        Returns the 20 most recent statuses posted from the authenticating user
+        or the user specified. It's also possible to request another user's
+        timeline via the id parameter.
+
+        Parameters
+        ----------
+        user_id
+            |user_id|
+        screen_name
+            |screen_name|
+        since_id
+            |since_id|
+        count
+            |count|
+        max_id
+            |max_id|
+        trim_user
+            |trim_user|
+        exclude_replies
+            |exclude_replies|
+        include_rts
+            When set to ``false``, the timeline will strip any native retweets
+            (though they will still count toward both the maximal length of the
+            timeline and the slice selected by the count parameter). Note: If
+            you're using the trim_user parameter in conjunction with
+            include_rts, the retweets will still contain a full user object.
+
+        Returns
+        -------
+        :py:class:`List`\[:class:`~tweepy.models.Status`]
+
+        References
+        ----------
+        https://developer.twitter.com/en/docs/twitter-api/v1/tweets/timelines/api-reference/get-statuses-user_timeline
+        """
+        if trim_user is not None or exclude_replies is not None or include_rts is not None:
+            log.warning(
+                '`trim_user`, `exclude_replies`, and `include_rts` are not implemented in tweepy-mastodon yet')
+
+        mastodon_posts = self.mastodon.timeline_home(limit=count, since_id=since_id, max_id=max_id)
+        posts = []
+        for mastodon_post in mastodon_posts:
+            post = convert_status(self.mastodon, mastodon_post)
+            posts.append(post)
+        return posts

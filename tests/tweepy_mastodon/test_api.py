@@ -70,3 +70,10 @@ def test_get_user(twitter_api: tweepy.API):
 
     with pytest.raises(Exception):
         twitter_api.get_user(None, None)
+
+
+def test_user_timeline(twitter_api: tweepy.API):
+    statuses = twitter_api.user_timeline(user_id=1, count=1)
+    assert len(statuses) == 1
+    assert statuses[0].user.screen_name
+    assert type(statuses[0].text) is str

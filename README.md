@@ -22,7 +22,7 @@ An attempt to provide Mastodon API library with Tweepy-like interface, to help d
 | `api.update_status()` | ✅ | partially |
 | `api.home_timeline()` | ✅ | partially |
 | `api.get_user()` | ✅ | partially |
-| `api.user_timeline()` | 📝 TODO |  |
+| `api.user_timeline()` | ✅ | partially |
 | `api.get_status()` | 📝 TODO |  |
 | `api.update_status_with_media()` | 📝 TODO |  |
 | `api.create_favorite()` | 📝 TODO |  |
@@ -75,6 +75,9 @@ user = api.get_user(screen_name='npr@mstdn.social')
 assert user.id == 1201325
 assert user.screen_name == 'NPR@mstdn.social'
 assert user.name == 'NPR :verified:'
+
+user_statuses = api.user_timeline(user_id=1, since_id=0, count=10)
+assert len(user_statuses) == 10
 ```
 
 ## Installation
