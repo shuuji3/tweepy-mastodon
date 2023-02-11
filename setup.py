@@ -35,6 +35,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "Mastodon.py>=1.8.0,<2",
+        "tweepy>=4.12.1,<5",
     ],
     extras_require={
         "async": [
