@@ -33,8 +33,8 @@ An attempt to provide Mastodon API library with Tweepy-like interface, to help d
 | `api.destroy_friendship()` <br> (a.k.a. unfollow) | ✅ |  |
 | `api.create_mute()` | ✅ |  |
 | `api.destroy_mute()` | ✅ |  |
-| `api.create_block()` | 📝 TODO |  |
-| `api.destroy_block()` | 📝 TODO |  |
+| `api.create_block()` | ✅ | partially implemented |
+| `api.destroy_block()` | ✅ | partially implemented |
 | `api.create_list()` | 📝 TODO |  |
 | `api.destroy_list()` | 📝 TODO |  |
 | `api.update_status_with_media()` | 📝 TODO |  |

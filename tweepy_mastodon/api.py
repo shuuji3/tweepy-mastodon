@@ -619,3 +619,70 @@ class API(TweepyAPI):
         user = self.get_user(user_id, screen_name)
         self.mastodon.account_unmute(id=user.id)
         return user
+
+    def create_block(self, screen_name=None, user_id=None, include_entities=None, skip_status=None):
+        """create_block(*, screen_name, user_id, include_entities, skip_status)
+
+        Blocks the specified user from following the authenticating user. In
+        addition the blocked user will not show in the authenticating users
+        mentions or timeline (unless retweeted by another user). If a follow or
+        friend relationship exists it is destroyed.
+
+        Parameters
+        ----------
+        screen_name
+            |screen_name|
+        user_id
+            |user_id|
+        include_entities
+            |include_entities|
+        skip_status
+            |skip_status|
+
+        Returns
+        -------
+        :class:`~tweepy.models.User`
+
+        References
+        ----------
+        https://developer.twitter.com/en/docs/twitter-api/v1/accounts-and-users/mute-block-report-users/api-reference/post-blocks-create
+        """
+        if include_entities is not None or skip_status is not None:
+            log.warning('`include_entities` and `skip_status` are not implemented in tweepy-mastodon yet')
+
+        user = self.get_user(user_id, screen_name)
+        self.mastodon.account_block(id=user.id)
+        return user
+
+    def destroy_block(self, screen_name=None, user_id=None, include_entities=None, skip_status=None):
+        """destroy_block(*, screen_name, user_id, include_entities, \
+                         skip_status)
+
+        Un-blocks the user specified in the ID parameter for the authenticating
+        user.
+
+        Parameters
+        ----------
+        screen_name
+            |screen_name|
+        user_id
+            |user_id|
+        include_entities
+            |include_entities|
+        skip_status
+            |skip_status|
+
+        Returns
+        -------
+        :class:`~tweepy.models.User`
+
+        References
+        ----------
+        https://developer.twitter.com/en/docs/twitter-api/v1/accounts-and-users/mute-block-report-users/api-reference/post-blocks-destroy
+        """
+        if include_entities is not None or skip_status is not None:
+            log.warning('`include_entities` and `skip_status` are not implemented in tweepy-mastodon yet')
+
+        user = self.get_user(user_id, screen_name)
+        self.mastodon.account_unblock(id=user.id)
+        return user
