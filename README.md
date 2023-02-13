@@ -20,6 +20,7 @@ An attempt to provide Mastodon API library with Tweepy-like interface, to help d
 | `tweepy.OAuth1UserHandler` <br> (previously `tweepy.OAuthHandler` ) | ✅ |  |
 | `api.verify_credentials()` | ✅ |  |
 | `api.update_status()` | ✅ | partially implemented |
+| `api.media_upload()` | 📝 TODO |  |
 | `api.destroy_status()` | ✅ | partially implemented |
 | `api.home_timeline()` | ✅ | partially implemented |
 | `api.get_user()` | ✅ | partially implemented |
@@ -37,7 +38,6 @@ An attempt to provide Mastodon API library with Tweepy-like interface, to help d
 | `api.destroy_block()` | ✅ | partially implemented |
 | `api.create_list()` | 📝 TODO |  |
 | `api.destroy_list()` | 📝 TODO |  |
-| `api.update_status_with_media()` | 📝 TODO |  |
 | ... | 📝 TODO |  |
 | `api.mastodon` | ✅ | Bonus: You can use any Mastodon.py API ✨ |
 
