@@ -127,8 +127,21 @@ class API(TweepyAPI):
             posts.append(post)
         return posts
 
-    # TODO: write argument names explicitly
-    def update_status(self, status, **kwargs):
+    def update_status(
+            self, status,
+            in_reply_to_status_id=None,
+            auto_populate_reply_metadata=None,
+            exclude_reply_user_ids=None,
+            attachment_url=None,
+            media_ids=None,
+            possibly_sensitive=None,
+            lat=None,
+            long=None,
+            place_id=None,
+            display_coordinates=None,
+            trim_user=None,
+            card_uri=None
+    ):
         """update_status( \
             status, *, in_reply_to_status_id, auto_populate_reply_metadata, \
             exclude_reply_user_ids, attachment_url, media_ids, \
@@ -219,16 +232,31 @@ class API(TweepyAPI):
         https://developer.twitter.com/en/docs/twitter-api/v1/tweets/post-and-engage/api-reference/post-statuses-update
         """
         unimplemented_kwargs = {
-            'filename',
-            'file',
-            'possibly_sensitive',
-            'in_reply_to_status_id',
-            'lat',
-            'long',
-            'place_id',
-            'display_coordinates',
+            in_reply_to_status_id,
+            auto_populate_reply_metadata,
+            exclude_reply_user_ids,
+            attachment_url,
+            media_ids,
+            possibly_sensitive,
+            lat,
+            long,
+            place_id,
+            display_coordinates,
+            trim_user,
+            card_uri,
         }
-        if len(unimplemented_kwargs & set(kwargs)) > 0:
+        if in_reply_to_status_id is not None or \
+                auto_populate_reply_metadata is not None or \
+                exclude_reply_user_ids is not None or \
+                attachment_url is not None or \
+                media_ids is not None or \
+                possibly_sensitive is not None or \
+                lat is not None or \
+                long is not None or \
+                place_id is not None or \
+                display_coordinates is not None or \
+                trim_user is not None or \
+                card_uri is not None:
             log.warning(f'{unimplemented_kwargs} are not implemented in tweepy-mastodon yet')
 
         post = self.mastodon.toot(status)
