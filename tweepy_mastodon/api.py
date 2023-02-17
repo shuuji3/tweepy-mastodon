@@ -232,11 +232,9 @@ class API(TweepyAPI):
         https://developer.twitter.com/en/docs/twitter-api/v1/tweets/post-and-engage/api-reference/post-statuses-update
         """
         unimplemented_kwargs = {
-            in_reply_to_status_id,
             auto_populate_reply_metadata,
             exclude_reply_user_ids,
             attachment_url,
-            media_ids,
             possibly_sensitive,
             lat,
             long,
@@ -245,11 +243,9 @@ class API(TweepyAPI):
             trim_user,
             card_uri,
         }
-        if in_reply_to_status_id is not None or \
-                auto_populate_reply_metadata is not None or \
+        if auto_populate_reply_metadata is not None or \
                 exclude_reply_user_ids is not None or \
                 attachment_url is not None or \
-                media_ids is not None or \
                 possibly_sensitive is not None or \
                 lat is not None or \
                 long is not None or \
@@ -259,7 +255,7 @@ class API(TweepyAPI):
                 card_uri is not None:
             log.warning(f'{unimplemented_kwargs} are not implemented in tweepy-mastodon yet')
 
-        post = self.mastodon.status_post(status)
+        post = self.mastodon.status_post(status, in_reply_to_id=in_reply_to_status_id, media_ids=media_ids)
         return convert_status(self.mastodon, post)
 
     def media_upload(self, filename, file=None, chunked=None,
