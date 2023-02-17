@@ -1,6 +1,8 @@
+import imghdr
 import logging
+import mimetypes
 
-from tweepy_mastodon.utils import convert_user, convert_status
+from tweepy_mastodon.utils import convert_user, convert_status, convert_media
 from tweepy_mastodon.tweepy.api import API as TweepyAPI
 
 log = logging.getLogger(__name__)
@@ -231,6 +233,57 @@ class API(TweepyAPI):
 
         post = self.mastodon.toot(status)
         return convert_status(self.mastodon, post)
+
+    def media_upload(self, filename, file=None, chunked=None,
+                     media_category=None, additional_owners=None, **kwargs):
+        """media_upload(filename, *, file, chunked, media_category, \
+                        additional_owners)
+
+        Use this to upload media to Twitter. This calls either
+        :func:`API.simple_upload` or :func:`API.chunked_upload`. Chunked media
+        upload is automatically used for videos. If ``chunked`` is set or the
+        media is a video, ``wait_for_async_finalize`` can be specified as a
+        keyword argument to be passed to :func:`API.chunked_upload`.
+
+        Parameters
+        ----------
+        filename
+            |filename|
+        file
+            |file|
+        chunked
+            Whether or not to use chunked media upload. Videos use chunked
+            upload regardless of this parameter. Defaults to ``False``.
+        media_category
+            |media_category|
+        additional_owners
+            |additional_owners|
+
+        Returns
+        -------
+        :class:`~tweepy.models.Media`
+
+        References
+        ----------
+        https://developer.twitter.com/en/docs/twitter-api/v1/media/upload-media/overview
+        """
+        if chunked is not None or media_category is not None or additional_owners is not None:
+            log.warning('`chunked`, `media_category`, and `additional_owners` are '
+                        'not implemented in tweepy-mastodon yet')
+        h = None
+        if file is not None:
+            location = file.tell()
+            h = file.read(32)
+            file.seek(location)
+        mime_type = imghdr.what(filename, h=h)
+        if mime_type is not None:
+            mime_type = 'image/' + mime_type
+        else:
+            mime_type = mimetypes.guess_type(filename)[0]
+
+        media_file = file or filename
+        mastodon_media = self.mastodon.media_post(media_file=media_file, mime_type=mime_type, file_name=filename)
+        return convert_media(mastodon_media)
 
     def destroy_status(self, id=None, trim_user=None):
         """destroy_status(id, *, trim_user)

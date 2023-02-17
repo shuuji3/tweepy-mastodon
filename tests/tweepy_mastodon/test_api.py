@@ -57,6 +57,11 @@ def test_update_status(twitter_api: tweepy.API, mocker):
     pass
 
 
+def test_media_upload(twitter_api: tweepy.API, mocker):
+    # TODO: write test with mock
+    pass
+
+
 def test_destroy_status(twitter_api: tweepy.API):
     # TODO: write test with mock
     # twitter_api.destroy_status(status_id)
