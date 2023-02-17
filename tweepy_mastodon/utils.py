@@ -1,3 +1,5 @@
+import mimetypes
+
 from mastodon import Mastodon
 from mastodon.utility import AttribAccessDict
 
@@ -136,3 +138,17 @@ def convert_user(
         mastodon_account['profile_location'] = None
 
     return mastodon_account
+
+
+def convert_media(mastodon_media: AttribAccessDict) -> AttribAccessDict:
+    mastodon_media['media_id'] = mastodon_media.id
+    mastodon_media['media_id_string'] = str(mastodon_media.id)
+    mastodon_media['size'] = 0  # no info available
+    # It seems no expiration on mastodon though.
+    mastodon_media['expires_after_secs'] = 24 * 60 * 60
+    mastodon_media['image'] = AttribAccessDict({
+        'image_type': mimetypes.guess_type(mastodon_media.url)[0],
+        'w': mastodon_media.meta['original']['width'],
+        'h': mastodon_media.meta['original']['height'],
+    })
+    return mastodon_media

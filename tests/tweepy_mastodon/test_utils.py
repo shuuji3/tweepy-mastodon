@@ -5,7 +5,7 @@ from mastodon.utility import AttribAccessDict
 import pytest
 
 from tests.tweepy_mastodon.test_api import mastodon_api
-from tweepy_mastodon.utils import convert_user, convert_status
+from tweepy_mastodon.utils import convert_user, convert_status, convert_media
 
 
 @pytest.fixture
@@ -401,3 +401,8 @@ def test_convert_status(mastodon_api, mastodon_status, twitter_status):
 
     # Enable only during development since the mastodon data structure has extra properties and not exactly the same
     # assert converted_status == twitter_status
+
+
+def test_convert_media(mastodon_media, twitter_media):
+    converted_media = convert_media(mastodon_media)
+    assert set(converted_media.keys()).issuperset(set(twitter_media.keys()))
