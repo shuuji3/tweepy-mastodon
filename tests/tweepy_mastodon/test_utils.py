@@ -188,6 +188,37 @@ def twitter_status():
         'text': 'tweet test example',
         'truncated': False,
         'entities': {'hashtags': [], 'symbols': [], 'user_mentions': [], 'urls': []},
+        # note: media attached tweet
+        # 'entities': {'hashtags': [],
+        #              'symbols': [],
+        #              'user_mentions': [],
+        #              'urls': [],
+        #              'media': [{'id': 1626576831133659140,
+        #                         'id_str': '1626576831133659140',
+        #                         'indices': [11, 34],
+        #                         'media_url': 'http://pbs.twimg.com/media/FpLDAouaMAQVfzL.png',
+        #                         'media_url_https': 'https://pbs.twimg.com/media/FpLDAouaMAQVfzL.png',
+        #                         'url': 'https://t.co/Krd9am0Jg2',
+        #                         'display_url': 'pic.twitter.com/Krd9am0Jg2',
+        #                         'expanded_url': 'https://twitter.com/tmp20230203/status/1626577025149575169/photo/1',
+        #                         'type': 'photo',
+        #                         'sizes': {'small': {'w': 200, 'h': 200, 'resize': 'fit'},
+        #                                   'medium': {'w': 200, 'h': 200, 'resize': 'fit'},
+        #                                   'large': {'w': 200, 'h': 200, 'resize': 'fit'},
+        #                                   'thumb': {'w': 150, 'h': 150, 'resize': 'crop'}}}]},
+        # 'extended_entities': {'media': [{'id': 1626576831133659140,
+        #                                  'id_str': '1626576831133659140',
+        #                                  'indices': [11, 34],
+        #                                  'media_url': 'http://pbs.twimg.com/media/FpLDAouaMAQVfzL.png',
+        #                                  'media_url_https': 'https://pbs.twimg.com/media/FpLDAouaMAQVfzL.png',
+        #                                  'url': 'https://t.co/Krd9am0Jg2',
+        #                                  'display_url': 'pic.twitter.com/Krd9am0Jg2',
+        #                                  'expanded_url': 'https://twitter.com/tmp20230203/status/1626577025149575169/photo/1',
+        #                                  'type': 'photo',
+        #                                  'sizes': {'small': {'w': 200, 'h': 200, 'resize': 'fit'},
+        #                                            'medium': {'w': 200, 'h': 200, 'resize': 'fit'},
+        #                                            'large': {'w': 200, 'h': 200, 'resize': 'fit'},
+        #                                            'thumb': {'w': 150, 'h': 150, 'resize': 'crop'}}}]},
         'source': 'Twitter Web App',
         'source_url': 'https://mobile.twitter.com',
         'in_reply_to_status_id': None,
@@ -302,6 +333,46 @@ def mastodon_status():
             'blurhash': 'UOS6Sut7fQt7%1ofj[ofE2Rjofj[~pRjj[WB'
         },
         'poll': None,
+    })
+
+
+@pytest.fixture
+def twitter_media():
+    yield AttribAccessDict({
+        'media_id': 1626569378593673218,
+        'media_id_string': '1626569378593673218',
+        'size': 15055,
+        'expires_after_secs': 86400,
+        'image': {'image_type': 'image/png', 'w': 200, 'h': 200},
+    })
+
+
+@pytest.fixture
+def mastodon_media():
+    yield AttribAccessDict({
+        'id': 109880226472105687,
+        'type': 'image',
+        'url': 'https://files.mastodon.social/media_attachments/files/109/880/226/472/105/687/original/f91b48adebf1aeb9.png',
+        'preview_url': 'https://files.mastodon.social/media_attachments/files/109/880/226/472/105/687/small/f91b48adebf1aeb9.png',
+        'remote_url': None,
+        'preview_remote_url': None,
+        'text_url': None,
+        'meta': {
+            'original': {
+                'width': 200,
+                'height': 200,
+                'size': '200x200',
+                'aspect': 1.0,
+            },
+            'small': {
+                'width': 200,
+                'height': 200,
+                'size': '200x200',
+                'aspect': 1.0,
+            },
+        },
+        'description': None,
+        'blurhash': 'U.Q]+HWMTBoqExoHV[s%ENobWBjGNJoJbHay',
     })
 
 
