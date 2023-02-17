@@ -259,7 +259,7 @@ class API(TweepyAPI):
                 card_uri is not None:
             log.warning(f'{unimplemented_kwargs} are not implemented in tweepy-mastodon yet')
 
-        post = self.mastodon.toot(status)
+        post = self.mastodon.status_post(status)
         return convert_status(self.mastodon, post)
 
     def media_upload(self, filename, file=None, chunked=None,
