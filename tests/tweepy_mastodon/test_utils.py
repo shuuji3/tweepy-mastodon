@@ -305,7 +305,7 @@ def mastodon_status():
     })
 
 
-def test_convert_user_verifiy_credentials(mastodon_api, twitter_verify_credentials):
+def test_convert_user_verify_credentials(mastodon_api, twitter_verify_credentials):
     mastodon_user = mastodon_api.me()
     converted_user = convert_user(mastodon_api, mastodon_user, verified_credentials=True)
     assert set(converted_user.keys()).issuperset(set(twitter_verify_credentials.keys()))
